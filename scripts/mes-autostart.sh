@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-PROJECT_DIR="${ROBO_PULSE_PROJECT_DIR:-/home/admin_ttm/robolabs-mes-demo}"
+PROJECT_DIR="${ROBO_PULSE_PROJECT_DIR:-/home/admin_ttm/robolabs-mes}"
 LOG_DIR="$PROJECT_DIR/logs"
 LOG_FILE="$LOG_DIR/autostart.log"
 

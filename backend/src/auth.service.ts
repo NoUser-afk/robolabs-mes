@@ -199,7 +199,7 @@ export class AuthService {
   }
 
   private signature(body: string) {
-    return createHmac('sha256', process.env.AUTH_SESSION_SECRET || 'robolabs-mes-demo-session-secret')
+    return createHmac('sha256', process.env.AUTH_SESSION_SECRET || 'robolabs-mes-session-secret')
       .update(body)
       .digest('base64url');
   }

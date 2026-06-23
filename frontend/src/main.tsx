@@ -564,7 +564,7 @@ function TerminalQrLoginScreen({ onLogin, onBack }: { onLogin: (user: AuthUser) 
 }
 
 function LoginScreen({ onLogin, terminalAppMode = false, onChangeServer }: { onLogin: (user: AuthUser) => void; terminalAppMode?: boolean; onChangeServer?: () => void }) {
-  const [login, setLogin] = useState(terminalAppMode ? '' : 'dispatcher.demo');
+  const [login, setLogin] = useState(terminalAppMode ? '' : 'dispatcher');
   const [password, setPassword] = useState(terminalAppMode ? '' : 'dispatcher');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);

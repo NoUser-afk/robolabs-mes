@@ -24,10 +24,20 @@ const passwordHash = (password: string, salt: string) => {
 const terminalQrToken = () => `rpt_${randomBytes(24).toString('base64url')}`;
 
 async function main() {
-  const template = await prisma.routeTemplate.upsert({
+  const legacyTemplate = await prisma.routeTemplate.findUnique({
     where: { productCode_version: { productCode: '209983', version: 'demo-1' } },
+  });
+  const currentTemplate = await prisma.routeTemplate.findUnique({
+    where: { productCode_version: { productCode: '209983', version: 'v1' } },
+  });
+  if (legacyTemplate && !currentTemplate) {
+    await prisma.routeTemplate.update({ where: { id: legacyTemplate.id }, data: { version: 'v1' } });
+  }
+
+  const template = await prisma.routeTemplate.upsert({
+    where: { productCode_version: { productCode: '209983', version: 'v1' } },
     update: { name: 'Маршрут изделия 209983', isActive: true },
-    create: { productCode: '209983', name: 'Маршрут изделия 209983', version: 'demo-1', isActive: true },
+    create: { productCode: '209983', name: 'Маршрут изделия 209983', version: 'v1', isActive: true },
   });
 
   const operationCodes = (route as any[]).map((op) => op.id);
@@ -72,38 +82,42 @@ async function main() {
   const terminalSections = Array.from(new Set([...routeTerminalSections, ...capacitySections, ...processSections].filter(Boolean)));
 
   for (const user of [
-    { login: 'dispatcher.demo', role: 'dispatcher', displayName: 'Диспетчер demo' },
-    { login: 'technologist.demo', role: 'technologist', displayName: 'Технолог demo' },
-    { login: 'operator.demo', role: 'operator', displayName: 'Оператор участка demo' },
-    { login: 'director.demo', role: 'director', displayName: 'Директор demo' },
-    { login: 'admin.demo', role: 'admin', displayName: 'Администратор demo' },
+    { login: 'dispatcher', role: 'dispatcher', displayName: 'Диспетчер' },
+    { login: 'technologist', role: 'technologist', displayName: 'Технолог' },
+    { login: 'operator', role: 'operator', displayName: 'Оператор участка' },
+    { login: 'director', role: 'director', displayName: 'Директор' },
+    { login: 'admin', role: 'admin', displayName: 'Администратор' },
   ]) {
     await prisma.appUser.upsert({ where: { login: user.login }, update: user, create: user });
   }
 
   await prisma.appUser.update({
-    where: { login: 'dispatcher.demo' },
-    data: { passwordHash: passwordHash('dispatcher', 'dispatcher.demo'), isTerminalOnly: false },
+    where: { login: 'dispatcher' },
+    data: { passwordHash: passwordHash('dispatcher', 'dispatcher'), isTerminalOnly: false },
   });
   await prisma.appUser.update({
-    where: { login: 'operator.demo' },
+    where: { login: 'operator' },
     data: {
-      passwordHash: passwordHash('1234', 'operator.demo'),
+      passwordHash: passwordHash('1234', 'operator'),
       workCenterSection: terminalSections[0],
       isTerminalOnly: true,
     },
   });
   await prisma.appUser.update({
-    where: { login: 'director.demo' },
-    data: { passwordHash: passwordHash('director', 'director.demo'), isTerminalOnly: false },
+    where: { login: 'director' },
+    data: { passwordHash: passwordHash('director', 'director'), isTerminalOnly: false },
   });
   await prisma.appUser.update({
-    where: { login: 'technologist.demo' },
-    data: { passwordHash: passwordHash('technologist', 'technologist.demo'), isTerminalOnly: false },
+    where: { login: 'technologist' },
+    data: { passwordHash: passwordHash('technologist', 'technologist'), isTerminalOnly: false },
   });
   await prisma.appUser.update({
-    where: { login: 'admin.demo' },
-    data: { passwordHash: passwordHash('admin', 'admin.demo'), isTerminalOnly: false },
+    where: { login: 'admin' },
+    data: { passwordHash: passwordHash('admin', 'admin'), isTerminalOnly: false },
+  });
+  await prisma.appUser.updateMany({
+    where: { login: { in: ['dispatcher.demo', 'technologist.demo', 'operator.demo', 'director.demo', 'admin.demo'] } },
+    data: { isActive: false },
   });
 
   const terminalLogins = terminalSections.map((_, index) => `terminal.${String(index + 1).padStart(2, '0')}`);

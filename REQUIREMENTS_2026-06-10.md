@@ -665,7 +665,7 @@
 
 | Направление | Статус реализации | Проверка |
 | --- | --- | --- |
-| Резервная копия исходников | Выполнено | `.backups/robolabs-mes-demo-source-20260610-160814.zip` |
+| Резервная копия исходников | Выполнено | `.backups/robolabs-mes-source-20260610-160814.zip` |
 | Резервная копия PostgreSQL | Выполнено | `.backups/robolabs_mes_pg_20260610-162642.sql` |
 | Название RoboPulse | Выполнено | Frontend title/логотип, backend health service, README |
 | Пароли пользователей | Выполнено | Терминальный вход требует пароль/PIN, debug-login выключен по умолчанию |
@@ -699,7 +699,7 @@
 16. HTTP smoke `GET http://localhost:8088/api/health`: `{"ok":true,"service":"RoboPulse"}`.
 17. Проверка схемы PostgreSQL: поля партии в `ProductionRun` и `groupCapable` в `ProductionUnitOperation` присутствуют.
 18. Проверка `/api/reference-data`: участок `Пробивной станок` и операция пробивного станка присутствуют, активная `ОР-00031` отсутствует.
-19. Auth smoke: `dispatcher.demo / dispatcher` входит по паролю; `terminal.01 / 1234` входит в терминал участка; `/api/auth/debug-profiles` без `ENABLE_DEBUG_LOGIN` возвращает `401`.
+19. Auth smoke: `dispatcher / dispatcher` входит по паролю; `terminal.01 / 1234` входит в терминал участка; `/api/auth/debug-profiles` без `ENABLE_DEBUG_LOGIN` возвращает `401`.
 20. Batch smoke: `POST /api/production/batches` создает 2 запуска с общим `batchNumber` и уникальными `RUN-*` ID.
 21. Bulk-operation smoke: `POST /api/production/unit-operations/bulk-action` переводит две штуки по лазерной операции `ОР-00002` в `work` с общим `bulk:*` маркером.
 22. UI Browser smoke `http://localhost:8088`: title `RoboPulse`, бренд виден, ошибок консоли нет, служебный вход работает.

@@ -1,7 +1,7 @@
-﻿# RoboPulse MES - общий план доработки
+# RoboPulse MES - общий план доработки
 
 Дата составления: 2026-06-11  
-Проект: `robolabs-mes-demo`  
+Проект: `robolabs-mes`  
 Назначение документа: единый рабочий план, по которому можно последовательно улучшать RoboPulse MES без потери контекста между итерациями.
 
 ## 1. Как использовать этот файл
@@ -233,8 +233,8 @@ Infra/docs:
 
 Критерии приемки:
 
-- После входа `director.demo` открывается директорский экран.
-- После входа `technologist.demo` открывается экран технолога.
+- После входа `director` открывается директорский экран.
+- После входа `technologist` открывается экран технолога.
 - После выхода и входа под другой ролью не восстанавливается чужая вкладка.
 - Список терминалов читаем при 30+ участках.
 - Мобильный QR-вход объясняет причину ошибки без ручного ввода строки.
@@ -522,28 +522,28 @@ Infra/docs:
 Backend:
 
 ```powershell
-Set-Location C:\Users\zamoc\Desktop\robolabs-mes-demo\backend
+Set-Location C:\Users\zamoc\Desktop\robolabs-mes\backend
 npm run build
 ```
 
 Frontend:
 
 ```powershell
-Set-Location C:\Users\zamoc\Desktop\robolabs-mes-demo\frontend
+Set-Location C:\Users\zamoc\Desktop\robolabs-mes\frontend
 npm run build
 ```
 
 Docker config:
 
 ```powershell
-Set-Location C:\Users\zamoc\Desktop\robolabs-mes-demo
+Set-Location C:\Users\zamoc\Desktop\robolabs-mes
 docker compose config
 ```
 
 Пересборка стенда без удаления volumes:
 
 ```powershell
-Set-Location C:\Users\zamoc\Desktop\robolabs-mes-demo
+Set-Location C:\Users\zamoc\Desktop\robolabs-mes
 docker compose up -d --build backend frontend
 docker compose ps
 ```
@@ -568,9 +568,9 @@ http://localhost:8088/api/health
 
 - [x] Открывается экран входа.
 - [x] Пульс-линия на входе анимируется как осциллограф.
-- [x] `dispatcher.demo / dispatcher` открывает пульт диспетчера.
-- [x] `director.demo / director` открывает директорский монитор.
-- [x] `technologist.demo / technologist` открывает экран технолога.
+- [x] `dispatcher / dispatcher` открывает пульт диспетчера.
+- [x] `director / director` открывает директорский монитор.
+- [x] `technologist / technologist` открывает экран технолога.
 - [x] Терминальный PIN-вход открывает только свой участок.
 - [x] QR-вход на HTTPS открывает нужный терминал.
 - [x] Logout возвращает на вход.

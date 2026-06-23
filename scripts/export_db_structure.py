@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "README_DB_STRUCTURE_ROBOPULSE_MES.md"
 RAW_SCHEMA = ROOT / "database_schema_robolabs_mes.sql"
 SSH_TARGET = "ttm-mini"
-REMOTE_DIR = "/home/admin_ttm/robolabs-mes-demo"
+REMOTE_DIR = "/home/admin_ttm/robolabs-mes"
 DB_USER = "robolabs"
 DB_NAME = "robolabs_mes"
 

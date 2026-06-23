@@ -43,7 +43,7 @@ The server also has a non-production checkout prepared at:
 The currently running production directory is still:
 
 ```text
-/home/admin_ttm/robolabs-mes-demo
+/home/admin_ttm/robolabs-mes
 ```
 
 Use tags for production releases:

@@ -22,7 +22,7 @@ from reportlab.pdfgen import canvas
 ROOT = Path(__file__).resolve().parents[1]
 OUT_DIR = ROOT / "output" / "techprocess_graphs"
 SSH_TARGET = "ttm-mini"
-REMOTE_DIR = "/home/admin_ttm/robolabs-mes-demo"
+REMOTE_DIR = "/home/admin_ttm/robolabs-mes"
 DB_USER = "robolabs"
 DB_NAME = "robolabs_mes"
 

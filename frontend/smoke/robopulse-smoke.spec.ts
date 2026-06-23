@@ -160,9 +160,9 @@ test('terminal app mode shows QR login entry on mobile viewport', async ({ page 
 
 test('role entry smoke: dispatcher, director, technologist and logout', async ({ browser }) => {
   const roles = [
-    { login: 'dispatcher.demo', password: 'dispatcher', text: /Рабочее место диспетчера|План производства/ },
-    { login: 'director.demo', password: 'director', text: /Дашборд директора/ },
-    { login: 'technologist.demo', password: 'technologist', text: /Номенклатура/ },
+    { login: 'dispatcher', password: 'dispatcher', text: /Рабочее место диспетчера|План производства/ },
+    { login: 'director', password: 'director', text: /Дашборд директора/ },
+    { login: 'technologist', password: 'technologist', text: /Номенклатура/ },
   ];
   for (const role of roles) {
     const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
@@ -230,7 +230,7 @@ test('visual smoke for director dashboard at 1440 and 375 widths', async ({ brow
   for (const viewport of [{ width: 1440, height: 900 }, { width: 375, height: 812 }]) {
     const page = await browser.newPage({ viewport });
     const finishConsole = consoleGuard(page);
-    await loginByApi(page, 'director.demo', 'director');
+    await loginByApi(page, 'director', 'director');
     await expect(page.getByText(/Дашборд директора/).first()).toBeVisible();
     await expectNoRootOverflow(page);
     await page.screenshot({ path: test.info().outputPath(`director-${viewport.width}.png`), fullPage: true });
@@ -241,7 +241,7 @@ test('visual smoke for director dashboard at 1440 and 375 widths', async ({ brow
 
 test('dispatcher can launch one unit, cannot exceed order balance, and can release next process', async ({ page }) => {
   const finishConsole = consoleGuard(page, [/400 \(Bad Request\)/i]);
-  await loginByApi(page, 'dispatcher.demo', 'dispatcher');
+  await loginByApi(page, 'dispatcher', 'dispatcher');
   const product = await page.evaluate(async () => {
     const res = await fetch('/api/nomenclature', { credentials: 'include' });
     const payload = await res.json();
@@ -319,7 +319,7 @@ test('dispatcher can launch one unit, cannot exceed order balance, and can relea
 
 test('technologist save process updates nomenclature card data', async ({ page }) => {
   const finishConsole = consoleGuard(page);
-  await loginByApi(page, 'technologist.demo', 'technologist');
+  await loginByApi(page, 'technologist', 'technologist');
   const saved = await page.evaluate(async () => {
     const listRes = await fetch('/api/nomenclature', { credentials: 'include' });
     const list = await listRes.json();

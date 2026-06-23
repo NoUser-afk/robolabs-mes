@@ -123,9 +123,9 @@ def main() -> None:
     add(lines)
     add(lines, "**Статус документа:** черновик-основа, пригодный для преобразования в текст ВКР после согласования темы, методички кафедры, научной новизны, списка источников и формальных требований конкретного вуза.")
     add(lines)
-    add(lines, "**Проект:** `robolabs-mes-demo` / RoboPulse MES.")
+    add(lines, "**Проект:** `robolabs-mes` / RoboPulse MES.")
     add(lines, "**Рабочий стенд:** `ttm-mini`, URL `http://172.17.16.50:8088/`, HTTPS `https://172.17.16.50:8444/`, backend `http://172.17.16.50:3001/`.")
-    add(lines, "**Локальный путь:** `C:/Users/zamoc/Desktop/robolabs-mes-demo`.")
+    add(lines, "**Локальный путь:** `C:/Users/zamoc/Desktop/robolabs-mes`.")
     add(lines, "**Дата подготовки:** 2026-06-17.")
     add(lines)
     add(lines, "---")
@@ -534,7 +534,7 @@ npm.cmd run test:unit
     add_block(lines, codeblock("bash", "docker compose exec backend npx prisma migrate deploy"))
     add(lines)
     add(lines, "## 4.3 Перенос на `ttm-mini`")
-    add(lines, "Фактический стенд был развернут в каталоге `/home/admin_ttm/robolabs-mes-demo`, так как запись в `/opt` требовала sudo. Порты стенда: frontend HTTP `8088`, frontend HTTPS `8444`, backend host port `3001`, внутренний backend port `3000`.")
+    add(lines, "Фактический стенд был развернут в каталоге `/home/admin_ttm/robolabs-mes`, так как запись в `/opt` требовала sudo. Порты стенда: frontend HTTP `8088`, frontend HTTPS `8444`, backend host port `3001`, внутренний backend port `3000`.")
     add(lines)
     ttm_steps = [
         "проверка SSH-доступа `ttm-mini`;",
@@ -547,7 +547,7 @@ npm.cmd run test:unit
         "seed-инициализация справочников;",
         "загрузка данных с локального ПК;",
         "создание backup до и после импорта;",
-        "проверка `/api/health` и входа `dispatcher.demo`.",
+        "проверка `/api/health` и входа `dispatcher`.",
     ]
     for i, step in enumerate(ttm_steps, 1):
         add(lines, f"{i}. {step}")
@@ -607,7 +607,7 @@ cd android
         "HTTP health `http://172.17.16.50:8088/api/health`; ",
         "backend health `http://172.17.16.50:3001/api/health`; ",
         "HTTPS frontend `https://172.17.16.50:8444`; ",
-        "вход диспетчера `dispatcher.demo / dispatcher`; ",
+        "вход диспетчера `dispatcher / dispatcher`; ",
         "проверка данных БД после импорта.",
     ]
     for item in checks:

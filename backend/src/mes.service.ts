@@ -2361,7 +2361,7 @@ export class MesService {
         where: { id: existing.id },
         data: {
           displayName: `Terminal: ${section}`,
-          passwordHash: existing.passwordHash || this.demoTerminalPasswordHash(existing.login),
+          passwordHash: existing.passwordHash || this.defaultTerminalPasswordHash(existing.login),
           terminalQrToken: existing.terminalQrToken || this.terminalQrToken(),
           isTerminalOnly: true,
           isActive: true,
@@ -2382,7 +2382,7 @@ export class MesService {
         login,
         role: 'terminal',
         displayName: `Terminal: ${section}`,
-        passwordHash: this.demoTerminalPasswordHash(login),
+        passwordHash: this.defaultTerminalPasswordHash(login),
         terminalQrToken: this.terminalQrToken(),
         workCenterSection: section,
         isTerminalOnly: true,
@@ -2416,7 +2416,7 @@ export class MesService {
     if (product) return product;
     const requested = keys.join(', ');
     const available = await this.availableProductProcessesText();
-    throw new NotFoundException(`Техпроцесс номенклатуры не найден для: ${requested}. Доступные техпроцессы: ${available}. Выберите номенклатуру из справочника или используйте demo aliases: RC800, 209983, Multiholder, 231265, Печь, FURNACE-DEMO.`);
+    throw new NotFoundException(`Техпроцесс номенклатуры не найден для: ${requested}. Доступные техпроцессы: ${available}. Выберите номенклатуру из справочника или используйте fallback aliases: RC800, 209983, Multiholder, 231265, Печь, FURNACE-SAMPLE.`);
   }
 
   private normalizeManualProcess(body: ManualProcessInput): ProductProcess {
@@ -2503,9 +2503,9 @@ export class MesService {
     for (const step of processSteps) visit(step.operationId, []);
   }
 
-  private demoTerminalPasswordHash(login: string) {
+  private defaultTerminalPasswordHash(login: string) {
     const iterations = 120_000;
-    const salt = String(login || 'terminal.demo');
+    const salt = String(login || 'terminal');
     const digest = pbkdf2Sync('1234', salt, iterations, 32, 'sha256').toString('base64url');
     return `pbkdf2_sha256$${iterations}$${salt}$${digest}`;
   }
@@ -2527,7 +2527,7 @@ export class MesService {
   }
 
   private productProcessMatchKeys(product: ProductProcess): string[] {
-    return [product.id, product.productCode, product.equipment, ...this.demoProductAliases(product)].flatMap((value) => this.productMatchKeys(value));
+    return [product.id, product.productCode, product.equipment, ...this.fallbackProductAliases(product)].flatMap((value) => this.productMatchKeys(value));
   }
 
   private productMatchKeys(value: unknown): string[] {
@@ -2537,10 +2537,9 @@ export class MesService {
     return Array.from(new Set([text, compact]));
   }
 
-  private demoProductAliases(product: ProductProcess): string[] {
+  private fallbackProductAliases(product: ProductProcess): string[] {
     if (product.id === 'rc800-209983') {
-      // Demo mapping: тестовые заказы FURNACE-DEMO/Печь используют техпроцесс RC800 до появления отдельного XLSM.
-      return ['RC800', '209983', 'Печь', 'Печь промышленная', 'FURNACE-DEMO'];
+      return ['RC800', '209983', 'Печь', 'Печь промышленная', 'FURNACE-SAMPLE', 'FURNACE-DEMO'];
     }
     if (product.id === 'multiholder-231265') return ['Multiholder', 'Multiholder MH-6-3-TS2', '231265'];
     return [];

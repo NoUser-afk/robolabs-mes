@@ -15,7 +15,7 @@ to read when too many values are shown at once.
 ## Setup
 
 ```powershell
-cd C:\Users\zamoc\Desktop\robolabs-mes-demo\scripts\led_panel_status
+cd C:\Users\zamoc\Desktop\robolabs-mes\scripts\led_panel_status
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\setup.ps1
 ```
 

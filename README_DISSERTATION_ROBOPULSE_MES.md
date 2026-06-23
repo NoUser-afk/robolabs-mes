@@ -4,9 +4,9 @@
 
 **Статус документа:** черновик-основа, пригодный для преобразования в текст ВКР после согласования темы, методички кафедры, научной новизны, списка источников и формальных требований конкретного вуза.
 
-**Проект:** `robolabs-mes-demo` / RoboPulse MES.
+**Проект:** `robolabs-mes` / RoboPulse MES.
 **Рабочий стенд:** `ttm-mini`, URL `http://172.17.16.50:8088/`, HTTPS `https://172.17.16.50:8444/`, backend `http://172.17.16.50:3001/`.
-**Локальный путь:** `C:/Users/zamoc/Desktop/robolabs-mes-demo`.
+**Локальный путь:** `C:/Users/zamoc/Desktop/robolabs-mes`.
 **Дата подготовки:** 2026-06-17.
 
 ---
@@ -386,7 +386,7 @@ Android-приложение создано как Capacitor shell поверх 
 Docker Compose описывает три основных сервиса: PostgreSQL, backend и frontend. Контейнеры объединены сетью `robolabs_mes_net`, данные PostgreSQL и runtime-файлы вынесены в volumes.
 
 ```yaml
-name: robolabs-mes-demo
+name: robolabs-mes
 
 services:
   postgres:
@@ -396,7 +396,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-robolabs_mes}
       POSTGRES_USER: ${POSTGRES_USER:-robolabs}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-robolabs_demo_password}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-robolabs_mes_password}
     volumes:
       - robolabs_mes_pgdata:/var/lib/postgresql/data
     networks:
@@ -415,12 +415,12 @@ services:
     ports:
       - "${BACKEND_PORT:-3000}:3000"
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql://robolabs:robolabs_demo_password@postgres:5432/robolabs_mes?schema=public}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://robolabs:robolabs_mes_password@postgres:5432/robolabs_mes?schema=public}
       PORT: 3000
       UPLOAD_DIR: /app/uploads
       PRODUCTION_RUNS_FILE: ${PRODUCTION_RUNS_FILE:-/app/data/production-runs.json}
       AUTO_DB_PUSH: ${AUTO_DB_PUSH:-false}
-      AUTH_SESSION_SECRET: ${AUTH_SESSION_SECRET:-robolabs_mes_demo_change_me}
+      AUTH_SESSION_SECRET: ${AUTH_SESSION_SECRET:-robolabs_mes_change_me}
     volumes:
       - robolabs_mes_uploads:/app/uploads
       - robolabs_mes_runtime_data:/app/data
@@ -1486,7 +1486,7 @@ docker compose exec backend npx prisma migrate deploy
 ```
 
 ## 4.3 Перенос на `ttm-mini`
-Фактический стенд был развернут в каталоге `/home/admin_ttm/robolabs-mes-demo`, так как запись в `/opt` требовала sudo. Порты стенда: frontend HTTP `8088`, frontend HTTPS `8444`, backend host port `3001`, внутренний backend port `3000`.
+Фактический стенд был развернут в каталоге `/home/admin_ttm/robolabs-mes`, так как запись в `/opt` требовала sudo. Порты стенда: frontend HTTP `8088`, frontend HTTPS `8444`, backend host port `3001`, внутренний backend port `3000`.
 
 1. проверка SSH-доступа `ttm-mini`;
 2. подготовка архива проекта без `node_modules`, dist, test-results и локальных временных файлов;
@@ -1498,7 +1498,7 @@ docker compose exec backend npx prisma migrate deploy
 8. seed-инициализация справочников;
 9. загрузка данных с локального ПК;
 10. создание backup до и после импорта;
-11. проверка `/api/health` и входа `dispatcher.demo`.
+11. проверка `/api/health` и входа `dispatcher`.
 
 ## 4.4 Перенос данных
 Из локальной БД были перенесены заказы, статусы, production runs, production unit operations, справочники и номенклатура. Для сохранения состояния миграций удаленной схемы перенос выполнялся data-only dump без `_prisma_migrations`.
@@ -1552,7 +1552,7 @@ cd android
 - HTTP health `http://172.17.16.50:8088/api/health`; 
 - backend health `http://172.17.16.50:3001/api/health`; 
 - HTTPS frontend `https://172.17.16.50:8444`; 
-- вход диспетчера `dispatcher.demo / dispatcher`; 
+- вход диспетчера `dispatcher / dispatcher`; 
 - проверка данных БД после импорта.
 
 # Заключение
