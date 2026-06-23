@@ -896,7 +896,7 @@ docker compose exec -T backend sh -c "test -f /app/data/production-runs.json && 
 
 Restore всегда выполнять только после остановки пользователей/операторов и создания свежего backup текущего состояния.
 
-PostgreSQL restore на существующую БД зависит от политики: полная замена, восстановление в отдельную БД или точечный импорт. Для demo безопаснее:
+PostgreSQL restore на существующую БД зависит от политики: полная замена, восстановление в отдельную БД или точечный импорт. Для рабочего контура безопаснее:
 
 1. Поднять отдельный стенд или отдельную БД.
 2. Проверить backup-файл.
@@ -1101,7 +1101,7 @@ docker compose logs --tail=100 postgres
 docker compose exec backend npx prisma migrate deploy
 ```
 
-Если это одноразовая demo-инициализация, можно явно включить `AUTO_DB_PUSH=true`, но не использовать это как постоянный режим стенда с данными.
+Если это одноразовая первичная инициализация, можно явно включить `AUTO_DB_PUSH=true`, но не использовать это как постоянный режим стенда с данными.
 
 ### Импорт Excel возвращает ошибку `Активный маршрут не найден. Выполните seed.`
 
@@ -1202,7 +1202,7 @@ docker compose exec backend sh -c "echo $PRODUCTION_RUNS_FILE && ls -la /app/dat
 - backend: `backend/`, NestJS + Prisma;
 - БД: PostgreSQL 16 в контейнере `postgres`;
 - важные volume: `robolabs_mes_pgdata`, `robolabs_mes_uploads`, `robolabs_mes_runtime_data`;
-- legacy runtime файл demo-производства в контейнере backend: `/app/data/production-runs.json`;
+- legacy runtime файл производственных запусков в контейнере backend: `/app/data/production-runs.json`;
 - default URL приложения после запуска: `http://<SERVER_HOST>:8088`;
 - default healthcheck через frontend proxy: `http://<SERVER_HOST>:8088/api/health`.
 
