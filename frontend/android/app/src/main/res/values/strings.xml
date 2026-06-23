@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">RoboPulse Terminal</string>
+    <string name="title_activity_main">RoboPulse Terminal</string>
+    <string name="package_name">ru.robolabs.robopulse.terminal</string>
+    <string name="custom_url_scheme">ru.robolabs.robopulse.terminal</string>
+</resources>

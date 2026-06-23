@@ -1,0 +1,75 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build output
+dist/
+backend/dist/
+frontend/dist/
+frontend/test-results/
+frontend/playwright-report/
+frontend/.vite/
+
+# Android local/build output
+frontend/android/.gradle/
+frontend/android/build/
+frontend/android/app/build/
+frontend/android/local.properties
+frontend/android/capacitor-cordova-android-plugins/
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+!.env.*.example
+frontend/certs/*
+!frontend/certs/.gitignore
+!frontend/certs/README.md
+
+# Runtime data and generated deploy artifacts
+output/
+backups/
+.backups/
+.migration-*/
+.codex-remote-attachments/
+.playwright-mcp/
+mcp-stack/
+.server-sync-ts
+window.xml
+
+# Logs and temporary files
+__pycache__/
+**/__pycache__/
+*.pyc
+*.log
+*.log.*
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+
+# Local archives and screenshots
+/*.zip
+/*.7z
+/*.tar
+/*.tar.gz
+/*.gz
+/*.png
+/*.jpg
+/*.jpeg
+/*.webp
+/*.mp4
+/*.webm
+
+# Generated LED panel previews
+scripts/led_panel_status/config.json
+scripts/led_panel_status/last_frame.png
+scripts/led_panel_status/last_animation.gif
+scripts/led_panel_status/last_animation_sheet.png
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

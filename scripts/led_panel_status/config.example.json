@@ -1,0 +1,12 @@
+{
+  "address": "00:00:00:00:00:00",
+  "interval_seconds": 5,
+  "file_name": "pcstat",
+  "weather": {
+    "enabled": false,
+    "latitude": 55.7558,
+    "longitude": 37.6173,
+    "timezone": "Europe/Moscow",
+    "refresh_seconds": 900
+  }
+}

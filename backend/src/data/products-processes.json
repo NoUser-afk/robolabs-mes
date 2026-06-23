@@ -1,0 +1,1737 @@
+{
+  "extractedAt": "2026-05-27T06:36:03.891702+00:00",
+  "extractionMethod": "openpyxl load_workbook(read_only=True, data_only=True, keep_vba=False); VBA не выполнялся",
+  "products": [
+    {
+      "id": "rc800-209983",
+      "equipment": "RC800",
+      "productCode": "209983",
+      "category": "Промышленное оборудование",
+      "sourceFile": "C:\\Users\\zamoc\\Downloads\\Техпроцесс_RC800_209983.xlsm",
+      "sourceWorkbookSheets": [
+        "Лист1",
+        "Настройки",
+        "Схема",
+        "Инструкция",
+        "VBA_код",
+        "Проверка связей",
+        "_Проверка"
+      ],
+      "sourceDimensions": {
+        "Лист1": {
+          "rows": 58,
+          "columns": 33
+        },
+        "Настройки": {
+          "rows": 11,
+          "columns": 4
+        },
+        "Схема": {
+          "rows": 1,
+          "columns": 1
+        },
+        "Инструкция": {
+          "rows": 20,
+          "columns": 1
+        },
+        "VBA_код": {
+          "rows": 287,
+          "columns": 1
+        },
+        "Проверка связей": {
+          "rows": 2,
+          "columns": 5
+        },
+        "_Проверка": {
+          "rows": 56,
+          "columns": 2
+        }
+      },
+      "summary": {},
+      "processSteps": [
+        {
+          "sequence": 1,
+          "operationId": "ОР-00001",
+          "level": 1,
+          "partOrAssembly": "Общий запуск",
+          "name": "Запуск производственного заказа",
+          "section": "Диспетчеризация",
+          "previousOperationCodes": [],
+          "nextOperationCodes": [
+            "ОР-00002",
+            "ОР-00003",
+            "ОР-00004",
+            "ОР-00005"
+          ],
+          "normHours": 0.3,
+          "sourceSheet": "Лист1",
+          "sourceRow": 4,
+          "confidence": "high"
+        },
+        {
+          "sequence": 2,
+          "operationId": "ОР-00002",
+          "level": 2,
+          "partOrAssembly": "Металл",
+          "name": "Раскрой листового металла на лазере",
+          "section": "Лазерный станок",
+          "previousOperationCodes": [
+            "ОР-00001"
+          ],
+          "nextOperationCodes": [
+            "ОР-00006"
+          ],
+          "normHours": 2.5,
+          "sourceSheet": "Лист1",
+          "sourceRow": 5,
+          "confidence": "high"
+        },
+        {
+          "sequence": 3,
+          "operationId": "ОР-00003",
+          "level": 2,
+          "partOrAssembly": "Комплектация",
+          "name": "Сборка комплектации",
+          "section": "Склад",
+          "previousOperationCodes": [
+            "ОР-00001"
+          ],
+          "nextOperationCodes": [
+            "ОР-00007",
+            "ОР-00008",
+            "ОР-00009"
+          ],
+          "normHours": 2,
+          "sourceSheet": "Лист1",
+          "sourceRow": 6,
+          "confidence": "high"
+        },
+        {
+          "sequence": 4,
+          "operationId": "ОР-00004",
+          "level": 2,
+          "partOrAssembly": "Токарка",
+          "name": "Формирование заказа на заготовки для токарки",
+          "section": "Склад металла",
+          "previousOperationCodes": [
+            "ОР-00001"
+          ],
+          "nextOperationCodes": [
+            "ОР-00010"
+          ],
+          "normHours": 0.5,
+          "sourceSheet": "Лист1",
+          "sourceRow": 7,
+          "confidence": "high"
+        },
+        {
+          "sequence": 5,
+          "operationId": "ОР-00010",
+          "level": 3,
+          "partOrAssembly": "Токарка",
+          "name": "Нарезка заготовок для токарных деталей",
+          "section": "Склад металла",
+          "previousOperationCodes": [
+            "ОР-00004"
+          ],
+          "nextOperationCodes": [
+            "ОР-00011"
+          ],
+          "normHours": 1,
+          "sourceSheet": "Лист1",
+          "sourceRow": 8,
+          "confidence": "high"
+        },
+        {
+          "sequence": 6,
+          "operationId": "ОР-00011",
+          "level": 4,
+          "partOrAssembly": "Токарка",
+          "name": "Изготовление токарных деталей",
+          "section": "Токарный участок",
+          "previousOperationCodes": [
+            "ОР-00010"
+          ],
+          "nextOperationCodes": [
+            "ОР-00012",
+            "ОР-00013",
+            "ОР-00014"
+          ],
+          "normHours": 4.5,
+          "sourceSheet": "Лист1",
+          "sourceRow": 9,
+          "confidence": "high"
+        },
+        {
+          "sequence": 7,
+          "operationId": "ОР-00005",
+          "level": 2,
+          "partOrAssembly": "Электрика",
+          "name": "Заготовка проводов и жгутов",
+          "section": "Электромонтаж",
+          "previousOperationCodes": [
+            "ОР-00001"
+          ],
+          "nextOperationCodes": [
+            "ОР-00015"
+          ],
+          "normHours": 3.5,
+          "sourceSheet": "Лист1",
+          "sourceRow": 10,
+          "confidence": "high"
+        },
+        {
+          "sequence": 8,
+          "operationId": "ОР-00006",
+          "level": 3,
+          "partOrAssembly": "Металл",
+          "name": "Зачистка кромок после раскроя",
+          "section": "Зачистной станок",
+          "previousOperationCodes": [
+            "ОР-00002"
+          ],
+          "nextOperationCodes": [
+            "ОР-00016",
+            "ОР-00017",
+            "ОР-00018"
+          ],
+          "normHours": 1.5,
+          "sourceSheet": "Лист1",
+          "sourceRow": 11,
+          "confidence": "high"
+        },
+        {
+          "sequence": 9,
+          "operationId": "ОР-00018",
+          "level": 4,
+          "partOrAssembly": "Вентилятор",
+          "name": "Штамповка лопастей вентилятора",
+          "section": "Штамповка",
+          "previousOperationCodes": [
+            "ОР-00006"
+          ],
+          "nextOperationCodes": [
+            "ОР-00014"
+          ],
+          "normHours": 0.8,
+          "sourceSheet": "Лист1",
+          "sourceRow": 12,
+          "confidence": "high"
+        },
+        {
+          "sequence": 10,
+          "operationId": "ОР-00016",
+          "level": 4,
+          "partOrAssembly": "Детали под координатку",
+          "name": "Координатно-пробивной пресс",
+          "section": "Координатка",
+          "previousOperationCodes": [
+            "ОР-00006"
+          ],
+          "nextOperationCodes": [
+            "ОР-00019"
+          ],
+          "normHours": 2.8,
+          "sourceSheet": "Лист1",
+          "sourceRow": 13,
+          "confidence": "high"
+        },
+        {
+          "sequence": 11,
+          "operationId": "ОР-00019",
+          "level": 5,
+          "partOrAssembly": "Детали под координатку",
+          "name": "Гибка деталей после координатки",
+          "section": "Гибка",
+          "previousOperationCodes": [
+            "ОР-00016"
+          ],
+          "nextOperationCodes": [
+            "ОР-00020"
+          ],
+          "normHours": 2.5,
+          "sourceSheet": "Лист1",
+          "sourceRow": 14,
+          "confidence": "high"
+        },
+        {
+          "sequence": 12,
+          "operationId": "ОР-00020",
+          "level": 6,
+          "partOrAssembly": "Детали под координатку",
+          "name": "Снятие пленки с деталей после координатки",
+          "section": "Снятие пленки",
+          "previousOperationCodes": [
+            "ОР-00019"
+          ],
+          "nextOperationCodes": [
+            "ОР-00021",
+            "ОР-00022"
+          ],
+          "normHours": 1,
+          "sourceSheet": "Лист1",
+          "sourceRow": 15,
+          "confidence": "high"
+        },
+        {
+          "sequence": 13,
+          "operationId": "ОР-00017",
+          "level": 4,
+          "partOrAssembly": "Простые детали",
+          "name": "Гибка простых деталей",
+          "section": "Гибка",
+          "previousOperationCodes": [
+            "ОР-00006"
+          ],
+          "nextOperationCodes": [
+            "ОР-00023"
+          ],
+          "normHours": 1.8,
+          "sourceSheet": "Лист1",
+          "sourceRow": 16,
+          "confidence": "high"
+        },
+        {
+          "sequence": 14,
+          "operationId": "ОР-00023",
+          "level": 5,
+          "partOrAssembly": "Простые детали",
+          "name": "Снятие пленки с простых деталей",
+          "section": "Снятие пленки",
+          "previousOperationCodes": [
+            "ОР-00017"
+          ],
+          "nextOperationCodes": [
+            "ОР-00007",
+            "ОР-00024",
+            "ОР-00009",
+            "ОР-00025",
+            "ОР-00026",
+            "ОР-00021",
+            "ОР-00022",
+            "ОР-00012"
+          ],
+          "normHours": 0.8,
+          "sourceSheet": "Лист1",
+          "sourceRow": 17,
+          "confidence": "high"
+        },
+        {
+          "sequence": 15,
+          "operationId": "ОР-00007",
+          "level": 6,
+          "partOrAssembly": "Монтажная панель",
+          "name": "Сборка монтажной панели",
+          "section": "Бригада Сорокина",
+          "previousOperationCodes": [
+            "ОР-00003",
+            "ОР-00023"
+          ],
+          "nextOperationCodes": [
+            "ОР-00008"
+          ],
+          "normHours": 2,
+          "sourceSheet": "Лист1",
+          "sourceRow": 18,
+          "confidence": "high"
+        },
+        {
+          "sequence": 16,
+          "operationId": "ОР-00008",
+          "level": 7,
+          "partOrAssembly": "Монтажная панель",
+          "name": "Сборка монтажной панели эл.",
+          "section": "Электромонтаж",
+          "previousOperationCodes": [
+            "ОР-00003",
+            "ОР-00007"
+          ],
+          "nextOperationCodes": [
+            "ОР-00027",
+            "ОР-00015"
+          ],
+          "normHours": 0.2,
+          "sourceSheet": "Лист1",
+          "sourceRow": 19,
+          "confidence": "high"
+        },
+        {
+          "sequence": 17,
+          "operationId": "ОР-00024",
+          "level": 7,
+          "partOrAssembly": "Блок управления",
+          "name": "Сварка блока управления",
+          "section": "Бригада Сорокина",
+          "previousOperationCodes": [
+            "ОР-00023"
+          ],
+          "nextOperationCodes": [
+            "ОР-00028"
+          ],
+          "normHours": 1.5,
+          "sourceSheet": "Лист1",
+          "sourceRow": 20,
+          "confidence": "high"
+        },
+        {
+          "sequence": 18,
+          "operationId": "ОР-00028",
+          "level": 8,
+          "partOrAssembly": "Блок управления",
+          "name": "Зачистка блока управления",
+          "section": "Зачистка",
+          "previousOperationCodes": [
+            "ОР-00024"
+          ],
+          "nextOperationCodes": [
+            "ОР-00009"
+          ],
+          "normHours": 0.8,
+          "sourceSheet": "Лист1",
+          "sourceRow": 21,
+          "confidence": "high"
+        },
+        {
+          "sequence": 19,
+          "operationId": "ОР-00009",
+          "level": 9,
+          "partOrAssembly": "Блок управления",
+          "name": "Окончательная сборка блока управления",
+          "section": "Бригада Сорокина",
+          "previousOperationCodes": [
+            "ОР-00003",
+            "ОР-00023",
+            "ОР-00028"
+          ],
+          "nextOperationCodes": [
+            "ОР-00027"
+          ],
+          "normHours": 1.5,
+          "sourceSheet": "Лист1",
+          "sourceRow": 22,
+          "confidence": "high"
+        },
+        {
+          "sequence": 20,
+          "operationId": "ОР-00027",
+          "level": 10,
+          "partOrAssembly": "Блок управления",
+          "name": "Блок управления, электромонтаж",
+          "section": "Электромонтаж",
+          "previousOperationCodes": [
+            "ОР-00008",
+            "ОР-00009"
+          ],
+          "nextOperationCodes": [
+            "ОР-00015"
+          ],
+          "normHours": 0.2,
+          "sourceSheet": "Лист1",
+          "sourceRow": 23,
+          "confidence": "high"
+        },
+        {
+          "sequence": 21,
+          "operationId": "ОР-00025",
+          "level": 8,
+          "partOrAssembly": "Корпус печи",
+          "name": "Сборка и сварка боковин",
+          "section": "Бригада Сорокина",
+          "previousOperationCodes": [
+            "ОР-00023"
+          ],
+          "nextOperationCodes": [
+            "ОР-00029"
+          ],
+          "normHours": 3,
+          "sourceSheet": "Лист1",
+          "sourceRow": 24,
+          "confidence": "high"
+        },
+        {
+          "sequence": 22,
+          "operationId": "ОР-00029",
+          "level": 9,
+          "partOrAssembly": "Корпус печи",
+          "name": "Зачистка боковин",
+          "section": "Зачистка",
+          "previousOperationCodes": [
+            "ОР-00025"
+          ],
+          "nextOperationCodes": [
+            "ОР-00030"
+          ],
+          "normHours": 1.2,
+          "sourceSheet": "Лист1",
+          "sourceRow": 25,
+          "confidence": "high"
+        },
+        {
+          "sequence": 23,
+          "operationId": "ОР-00026",
+          "level": 9,
+          "partOrAssembly": "Корпус печи",
+          "name": "Сборка и сварка задней панели",
+          "section": "Бригада Сорокина",
+          "previousOperationCodes": [
+            "ОР-00023"
+          ],
+          "nextOperationCodes": [
+            "ОР-00030"
+          ],
+          "normHours": 2,
+          "sourceSheet": "Лист1",
+          "sourceRow": 26,
+          "confidence": "high"
+        },
+        {
+          "sequence": 25,
+          "operationId": "ОР-00021",
+          "level": 10,
+          "partOrAssembly": "Корпус печи",
+          "name": "Сборка и сварка передней панели",
+          "section": "Бригада Сорокина",
+          "previousOperationCodes": [
+            "ОР-00020",
+            "ОР-00023"
+          ],
+          "nextOperationCodes": [
+            "ОР-00032"
+          ],
+          "normHours": 2.2,
+          "sourceSheet": "Лист1",
+          "sourceRow": 28,
+          "confidence": "high"
+        },
+        {
+          "sequence": 26,
+          "operationId": "ОР-00032",
+          "level": 11,
+          "partOrAssembly": "Корпус печи",
+          "name": "Зачистка передней панели",
+          "section": "Зачистка",
+          "previousOperationCodes": [
+            "ОР-00021"
+          ],
+          "nextOperationCodes": [
+            "ОР-00030"
+          ],
+          "normHours": 0.8,
+          "sourceSheet": "Лист1",
+          "sourceRow": 29,
+          "confidence": "high"
+        },
+        {
+          "sequence": 27,
+          "operationId": "ОР-00022",
+          "level": 11,
+          "partOrAssembly": "Корпус печи",
+          "name": "Сборка средней панели",
+          "section": "Бригада Сорокина",
+          "previousOperationCodes": [
+            "ОР-00020",
+            "ОР-00023"
+          ],
+          "nextOperationCodes": [
+            "ОР-00030"
+          ],
+          "normHours": 1.8,
+          "sourceSheet": "Лист1",
+          "sourceRow": 30,
+          "confidence": "high"
+        },
+        {
+          "sequence": 28,
+          "operationId": "ОР-00012",
+          "level": 8,
+          "partOrAssembly": "Конвейер",
+          "name": "Сборка конвейера",
+          "section": "Бригада Сорокина",
+          "previousOperationCodes": [
+            "ОР-00011",
+            "ОР-00023"
+          ],
+          "nextOperationCodes": [
+            "ОР-00033"
+          ],
+          "normHours": 3,
+          "sourceSheet": "Лист1",
+          "sourceRow": 31,
+          "confidence": "high"
+        },
+        {
+          "sequence": 29,
+          "operationId": "ОР-00033",
+          "level": 9,
+          "partOrAssembly": "Конвейер",
+          "name": "Сварка конвейера",
+          "section": "Бригада Сорокина",
+          "previousOperationCodes": [
+            "ОР-00012"
+          ],
+          "nextOperationCodes": [
+            "ОР-00034"
+          ],
+          "normHours": 1.8,
+          "sourceSheet": "Лист1",
+          "sourceRow": 32,
+          "confidence": "high"
+        },
+        {
+          "sequence": 30,
+          "operationId": "ОР-00034",
+          "level": 10,
+          "partOrAssembly": "Конвейер",
+          "name": "Зачистка конвейера",
+          "section": "Зачистка",
+          "previousOperationCodes": [
+            "ОР-00033"
+          ],
+          "nextOperationCodes": [
+            "ОР-00013"
+          ],
+          "normHours": 1,
+          "sourceSheet": "Лист1",
+          "sourceRow": 33,
+          "confidence": "high"
+        },
+        {
+          "sequence": 31,
+          "operationId": "ОР-00013",
+          "level": 11,
+          "partOrAssembly": "Конвейер",
+          "name": "Окончательная сборка конвейера",
+          "section": "Бригада Сорокина",
+          "previousOperationCodes": [
+            "ОР-00011",
+            "ОР-00034"
+          ],
+          "nextOperationCodes": [
+            "ОР-00030"
+          ],
+          "normHours": 1.5,
+          "sourceSheet": "Лист1",
+          "sourceRow": 34,
+          "confidence": "high"
+        },
+        {
+          "sequence": 32,
+          "operationId": "ОР-00014",
+          "level": 12,
+          "partOrAssembly": "Вентилятор",
+          "name": "Сборка вентилятора",
+          "section": "Бригада Сорокина",
+          "previousOperationCodes": [
+            "ОР-00011",
+            "ОР-00018"
+          ],
+          "nextOperationCodes": [
+            "ОР-00035"
+          ],
+          "normHours": 1.2,
+          "sourceSheet": "Лист1",
+          "sourceRow": 35,
+          "confidence": "high"
+        },
+        {
+          "sequence": 33,
+          "operationId": "ОР-00035",
+          "level": 13,
+          "partOrAssembly": "Вентилятор",
+          "name": "Балансировка вентилятора",
+          "section": "Балансировка",
+          "previousOperationCodes": [
+            "ОР-00014"
+          ],
+          "nextOperationCodes": [
+            "ОР-00030"
+          ],
+          "normHours": 1.5,
+          "sourceSheet": "Лист1",
+          "sourceRow": 36,
+          "confidence": "high"
+        },
+        {
+          "sequence": 34,
+          "operationId": "ОР-00030",
+          "level": 12,
+          "partOrAssembly": "Главная сборка",
+          "name": "Главная сборка корпуса печи",
+          "section": "Бригада Сорокина",
+          "previousOperationCodes": [
+            "ОР-00029",
+            "ОР-00026",
+            "ОР-00032",
+            "ОР-00022",
+            "ОР-00013",
+            "ОР-00035"
+          ],
+          "nextOperationCodes": [
+            "ОР-00036"
+          ],
+          "normHours": 5,
+          "sourceSheet": "Лист1",
+          "sourceRow": 37,
+          "confidence": "high"
+        },
+        {
+          "sequence": 35,
+          "operationId": "ОР-00036",
+          "level": 13,
+          "partOrAssembly": "Главная сборка",
+          "name": "Установка конвейера",
+          "section": "Бригада Сорокина",
+          "previousOperationCodes": [
+            "ОР-00030"
+          ],
+          "nextOperationCodes": [
+            "ОР-00037"
+          ],
+          "normHours": 1.5,
+          "sourceSheet": "Лист1",
+          "sourceRow": 38,
+          "confidence": "high"
+        },
+        {
+          "sequence": 36,
+          "operationId": "ОР-00037",
+          "level": 13,
+          "partOrAssembly": "Главная сборка",
+          "name": "Установка вентилятора",
+          "section": "Бригада Сорокина",
+          "previousOperationCodes": [
+            "ОР-00036"
+          ],
+          "nextOperationCodes": [
+            "ОР-00038"
+          ],
+          "normHours": 0.8,
+          "sourceSheet": "Лист1",
+          "sourceRow": 39,
+          "confidence": "high"
+        },
+        {
+          "sequence": 37,
+          "operationId": "ОР-00038",
+          "level": 13,
+          "partOrAssembly": "Главная сборка",
+          "name": "Установка блока управления",
+          "section": "Бригада Сорокина",
+          "previousOperationCodes": [
+            "ОР-00037"
+          ],
+          "nextOperationCodes": [
+            "ОР-00015"
+          ],
+          "normHours": 0.7,
+          "sourceSheet": "Лист1",
+          "sourceRow": 40,
+          "confidence": "high"
+        },
+        {
+          "sequence": 38,
+          "operationId": "ОР-00015",
+          "level": 14,
+          "partOrAssembly": "Электромонтаж",
+          "name": "Окончательный электромонтаж",
+          "section": "Электромонтаж",
+          "previousOperationCodes": [
+            "ОР-00005",
+            "ОР-00008",
+            "ОР-00027",
+            "ОР-00038"
+          ],
+          "nextOperationCodes": [
+            "ОР-00039"
+          ],
+          "normHours": 4,
+          "sourceSheet": "Лист1",
+          "sourceRow": 41,
+          "confidence": "high"
+        },
+        {
+          "sequence": 39,
+          "operationId": "ОР-00039",
+          "level": 15,
+          "partOrAssembly": "Электромонтаж",
+          "name": "Проверка подключения",
+          "section": "Электромонтаж",
+          "previousOperationCodes": [
+            "ОР-00015"
+          ],
+          "nextOperationCodes": [
+            "ОР-00040"
+          ],
+          "normHours": 1,
+          "sourceSheet": "Лист1",
+          "sourceRow": 42,
+          "confidence": "high"
+        },
+        {
+          "sequence": 40,
+          "operationId": "ОР-00040",
+          "level": 16,
+          "partOrAssembly": "Электрические тесты",
+          "name": "Проверка заземления",
+          "section": "Электротест",
+          "previousOperationCodes": [
+            "ОР-00039"
+          ],
+          "nextOperationCodes": [
+            "ОР-00041"
+          ],
+          "normHours": 0.5,
+          "sourceSheet": "Лист1",
+          "sourceRow": 43,
+          "confidence": "high"
+        },
+        {
+          "sequence": 41,
+          "operationId": "ОР-00041",
+          "level": 16,
+          "partOrAssembly": "Электрические тесты",
+          "name": "Проверка пробоя изоляции",
+          "section": "Электротест",
+          "previousOperationCodes": [
+            "ОР-00040"
+          ],
+          "nextOperationCodes": [
+            "ОР-00042"
+          ],
+          "normHours": 0.7,
+          "sourceSheet": "Лист1",
+          "sourceRow": 44,
+          "confidence": "high"
+        },
+        {
+          "sequence": 42,
+          "operationId": "ОР-00042",
+          "level": 17,
+          "partOrAssembly": "Прошивка и контроль",
+          "name": "Прошивка контроллера",
+          "section": "Прошивка",
+          "previousOperationCodes": [
+            "ОР-00041"
+          ],
+          "nextOperationCodes": [
+            "ОР-00043"
+          ],
+          "normHours": 0.8,
+          "sourceSheet": "Лист1",
+          "sourceRow": 45,
+          "confidence": "high"
+        },
+        {
+          "sequence": 43,
+          "operationId": "ОР-00043",
+          "level": 18,
+          "partOrAssembly": "Финальная сборка",
+          "name": "Финальная сборка изделия",
+          "section": "Бригада Сорокина",
+          "previousOperationCodes": [
+            "ОР-00042"
+          ],
+          "nextOperationCodes": [
+            "ОР-00044"
+          ],
+          "normHours": 1.5,
+          "sourceSheet": "Лист1",
+          "sourceRow": 46,
+          "confidence": "high"
+        },
+        {
+          "sequence": 44,
+          "operationId": "ОР-00044",
+          "level": 19,
+          "partOrAssembly": "Тестирование",
+          "name": "Функциональное тестирование печи",
+          "section": "Тестовый участок",
+          "previousOperationCodes": [
+            "ОР-00043"
+          ],
+          "nextOperationCodes": [
+            "ОР-00045"
+          ],
+          "normHours": 2.5,
+          "sourceSheet": "Лист1",
+          "sourceRow": 47,
+          "confidence": "high"
+        },
+        {
+          "sequence": 45,
+          "operationId": "ОР-00045",
+          "level": 20,
+          "partOrAssembly": "Тестирование",
+          "name": "Проверка конвейера",
+          "section": "Тестовый участок",
+          "previousOperationCodes": [
+            "ОР-00044"
+          ],
+          "nextOperationCodes": [
+            "ОР-00046"
+          ],
+          "normHours": 0.5,
+          "sourceSheet": "Лист1",
+          "sourceRow": 48,
+          "confidence": "high"
+        },
+        {
+          "sequence": 46,
+          "operationId": "ОР-00046",
+          "level": 20,
+          "partOrAssembly": "Тестирование",
+          "name": "Проверка нагрева",
+          "section": "Тестовый участок",
+          "previousOperationCodes": [
+            "ОР-00045"
+          ],
+          "nextOperationCodes": [
+            "ОР-00047"
+          ],
+          "normHours": 1.5,
+          "sourceSheet": "Лист1",
+          "sourceRow": 49,
+          "confidence": "high"
+        },
+        {
+          "sequence": 47,
+          "operationId": "ОР-00047",
+          "level": 20,
+          "partOrAssembly": "Тестирование",
+          "name": "Проверка вентилятора",
+          "section": "Тестовый участок",
+          "previousOperationCodes": [
+            "ОР-00046"
+          ],
+          "nextOperationCodes": [
+            "ОР-00048"
+          ],
+          "normHours": 0.5,
+          "sourceSheet": "Лист1",
+          "sourceRow": 50,
+          "confidence": "high"
+        },
+        {
+          "sequence": 48,
+          "operationId": "ОР-00048",
+          "level": 21,
+          "partOrAssembly": "Мойка",
+          "name": "Частичная разборка",
+          "section": "Мойка",
+          "previousOperationCodes": [
+            "ОР-00047"
+          ],
+          "nextOperationCodes": [
+            "ОР-00049"
+          ],
+          "normHours": 0.7,
+          "sourceSheet": "Лист1",
+          "sourceRow": 51,
+          "confidence": "high"
+        },
+        {
+          "sequence": 49,
+          "operationId": "ОР-00049",
+          "level": 22,
+          "partOrAssembly": "Мойка",
+          "name": "Мойка",
+          "section": "Мойка",
+          "previousOperationCodes": [
+            "ОР-00048"
+          ],
+          "nextOperationCodes": [
+            "ОР-00050"
+          ],
+          "normHours": 1,
+          "sourceSheet": "Лист1",
+          "sourceRow": 52,
+          "confidence": "high"
+        },
+        {
+          "sequence": 50,
+          "operationId": "ОР-00050",
+          "level": 23,
+          "partOrAssembly": "Мойка",
+          "name": "Сборка после мойки",
+          "section": "Мойка",
+          "previousOperationCodes": [
+            "ОР-00049"
+          ],
+          "nextOperationCodes": [
+            "ОР-00051"
+          ],
+          "normHours": 0.8,
+          "sourceSheet": "Лист1",
+          "sourceRow": 53,
+          "confidence": "high"
+        },
+        {
+          "sequence": 51,
+          "operationId": "ОР-00051",
+          "level": 24,
+          "partOrAssembly": "Подготовка к упаковке",
+          "name": "Комплектовка",
+          "section": "ОТК",
+          "previousOperationCodes": [
+            "ОР-00050"
+          ],
+          "nextOperationCodes": [
+            "ОР-00052"
+          ],
+          "normHours": 0.8,
+          "sourceSheet": "Лист1",
+          "sourceRow": 54,
+          "confidence": "high"
+        },
+        {
+          "sequence": 52,
+          "operationId": "ОР-00052",
+          "level": 24,
+          "partOrAssembly": "Подготовка к упаковке",
+          "name": "Наклейка маркировки",
+          "section": "ОТК",
+          "previousOperationCodes": [
+            "ОР-00051"
+          ],
+          "nextOperationCodes": [
+            "ОР-00053"
+          ],
+          "normHours": 0.3,
+          "sourceSheet": "Лист1",
+          "sourceRow": 55,
+          "confidence": "high"
+        },
+        {
+          "sequence": 53,
+          "operationId": "ОР-00053",
+          "level": 24,
+          "partOrAssembly": "Подготовка к упаковке",
+          "name": "Укладка документации",
+          "section": "ОТК",
+          "previousOperationCodes": [
+            "ОР-00052"
+          ],
+          "nextOperationCodes": [
+            "ОР-00054"
+          ],
+          "normHours": 0.2,
+          "sourceSheet": "Лист1",
+          "sourceRow": 56,
+          "confidence": "high"
+        },
+        {
+          "sequence": 54,
+          "operationId": "ОР-00054",
+          "level": 24,
+          "partOrAssembly": "Подготовка к упаковке",
+          "name": "Укладка ЗИП",
+          "section": "ОТК",
+          "previousOperationCodes": [
+            "ОР-00053"
+          ],
+          "nextOperationCodes": [
+            "ОР-00055"
+          ],
+          "normHours": 0.5,
+          "sourceSheet": "Лист1",
+          "sourceRow": 57,
+          "confidence": "high"
+        },
+        {
+          "sequence": 55,
+          "operationId": "ОР-00055",
+          "level": 25,
+          "partOrAssembly": "Упаковка",
+          "name": "Упаковка изделия",
+          "section": "Упаковка",
+          "previousOperationCodes": [
+            "ОР-00054"
+          ],
+          "nextOperationCodes": [],
+          "normHours": 1.5,
+          "sourceSheet": "Лист1",
+          "sourceRow": 58,
+          "confidence": "high"
+        }
+      ],
+      "totalNormHours": 80,
+      "confidence": "medium",
+      "notes": [
+        "XLSM прочитан как workbook/data archive без выполнения VBA-макросов.",
+        "Категория задана как безопасная demo-нормализация: в явном виде общий вид номенклатуры в анализируемых ячейках не найден."
+      ]
+    },
+    {
+      "id": "multiholder-231265",
+      "equipment": "Multiholder MH-6-3-TS2",
+      "productCode": "231265",
+      "category": "Промышленное оборудование",
+      "sourceFile": "C:\\Users\\zamoc\\Downloads\\Техпроцесс_Multiholder_231265_с_автосхемой.xlsm",
+      "sourceWorkbookSheets": [
+        "Лист1",
+        "Настройки",
+        "Схема",
+        "Инструкция",
+        "VBA_код",
+        "Проверка связей",
+        "_Проверка",
+        "Сводка MES"
+      ],
+      "sourceDimensions": {
+        "Лист1": {
+          "rows": 48,
+          "columns": 33
+        },
+        "Настройки": {
+          "rows": 11,
+          "columns": 4
+        },
+        "Схема": {
+          "rows": 1,
+          "columns": 1
+        },
+        "Инструкция": {
+          "rows": 24,
+          "columns": 1
+        },
+        "VBA_код": {
+          "rows": 287,
+          "columns": 1
+        },
+        "Проверка связей": {
+          "rows": 2,
+          "columns": 5
+        },
+        "_Проверка": {
+          "rows": 34,
+          "columns": 2
+        },
+        "Сводка MES": {
+          "rows": 7,
+          "columns": 2
+        }
+      },
+      "summary": {
+        "Показатель": "Значение",
+        "Изделие": "231265 Multiholder MH-6-3-TS2",
+        "Количество операций": "43",
+        "Суммарная трудоемкость, ч": "47.4",
+        "Трудоемкость Бригады Петрулина, ч": "17",
+        "Проверка связей": "Ошибок не найдено",
+        "Обновление схемы": "Alt+F8 → BuildProcessFlow"
+      },
+      "processSteps": [
+        {
+          "sequence": 1,
+          "operationId": "ОР-00001",
+          "level": 1,
+          "partOrAssembly": "Multiholder 231265",
+          "name": "Запуск заказа в производство",
+          "section": "Диспетчеризация",
+          "previousOperationCodes": [],
+          "nextOperationCodes": [
+            "ОР-00002",
+            "ОР-00003",
+            "ОР-00004",
+            "ОР-00056"
+          ],
+          "normHours": 0.15,
+          "sourceSheet": "Лист1",
+          "sourceRow": 4,
+          "confidence": "high"
+        },
+        {
+          "sequence": 2,
+          "operationId": "ОР-00002",
+          "level": 2,
+          "partOrAssembly": "Multiholder 231265",
+          "name": "Лазерный раскрой",
+          "section": "Лазерный станок",
+          "previousOperationCodes": [
+            "ОР-00001"
+          ],
+          "nextOperationCodes": [
+            "ОР-00005"
+          ],
+          "normHours": 1.2,
+          "sourceSheet": "Лист1",
+          "sourceRow": 5,
+          "confidence": "high"
+        },
+        {
+          "sequence": 3,
+          "operationId": "ОР-00003",
+          "level": 2,
+          "partOrAssembly": "Multiholder 231265",
+          "name": "Сборка комплектации изделия",
+          "section": "Склад",
+          "previousOperationCodes": [
+            "ОР-00001"
+          ],
+          "nextOperationCodes": [
+            "ОР-00016",
+            "ОР-00019"
+          ],
+          "normHours": 0.6,
+          "sourceSheet": "Лист1",
+          "sourceRow": 6,
+          "confidence": "high"
+        },
+        {
+          "sequence": 4,
+          "operationId": "ОР-00004",
+          "level": 2,
+          "partOrAssembly": "Multiholder 231265",
+          "name": "Подготовка заготовок для токарного участка",
+          "section": "Склад металла",
+          "previousOperationCodes": [
+            "ОР-00001"
+          ],
+          "nextOperationCodes": [
+            "ОР-00010"
+          ],
+          "normHours": 0.35,
+          "sourceSheet": "Лист1",
+          "sourceRow": 7,
+          "confidence": "high"
+        },
+        {
+          "sequence": 5,
+          "operationId": "ОР-00056",
+          "level": 2,
+          "partOrAssembly": "Multiholder 231265",
+          "name": "Подготовка проводов и жгутов",
+          "section": "Электромонтаж",
+          "previousOperationCodes": [
+            "ОР-00001"
+          ],
+          "nextOperationCodes": [
+            "ОР-00026"
+          ],
+          "normHours": 1.2,
+          "sourceSheet": "Лист1",
+          "sourceRow": 8,
+          "confidence": "high"
+        },
+        {
+          "sequence": 6,
+          "operationId": "ОР-00010",
+          "level": 3,
+          "partOrAssembly": "Multiholder 231265",
+          "name": "Изготовление токарных деталей",
+          "section": "Токарный участок",
+          "previousOperationCodes": [
+            "ОР-00004"
+          ],
+          "nextOperationCodes": [
+            "ОР-00023",
+            "ОР-00009"
+          ],
+          "normHours": 1.5,
+          "sourceSheet": "Лист1",
+          "sourceRow": 9,
+          "confidence": "high"
+        },
+        {
+          "sequence": 7,
+          "operationId": "ОР-00005",
+          "level": 3,
+          "partOrAssembly": "Multiholder 231265",
+          "name": "Зачистка деталей после лазера",
+          "section": "Зачистной станок",
+          "previousOperationCodes": [
+            "ОР-00002"
+          ],
+          "nextOperationCodes": [
+            "ОР-00006",
+            "ОР-00016",
+            "ОР-00019"
+          ],
+          "normHours": 1,
+          "sourceSheet": "Лист1",
+          "sourceRow": 10,
+          "confidence": "high"
+        },
+        {
+          "sequence": 8,
+          "operationId": "ОР-00006",
+          "level": 4,
+          "partOrAssembly": "Multiholder 231265",
+          "name": "Гибка деталей",
+          "section": "Гибка",
+          "previousOperationCodes": [
+            "ОР-00005"
+          ],
+          "nextOperationCodes": [
+            "ОР-00057"
+          ],
+          "normHours": 1.4,
+          "sourceSheet": "Лист1",
+          "sourceRow": 11,
+          "confidence": "high"
+        },
+        {
+          "sequence": 9,
+          "operationId": "ОР-00016",
+          "level": 4,
+          "partOrAssembly": "Multiholder 231265",
+          "name": "Сборка алюминиевых листов",
+          "section": "Бригада Петрулина",
+          "previousOperationCodes": [
+            "ОР-00003",
+            "ОР-00005"
+          ],
+          "nextOperationCodes": [
+            "ОР-00020"
+          ],
+          "normHours": 0.3,
+          "sourceSheet": "Лист1",
+          "sourceRow": 12,
+          "confidence": "high"
+        },
+        {
+          "sequence": 10,
+          "operationId": "ОР-00019",
+          "level": 4,
+          "partOrAssembly": "Multiholder 231265",
+          "name": "Передние панели под тачскрин: подготовка",
+          "section": "Бригада Петрулина",
+          "previousOperationCodes": [
+            "ОР-00003",
+            "ОР-00005"
+          ],
+          "nextOperationCodes": [
+            "ОР-00058"
+          ],
+          "normHours": 0.5,
+          "sourceSheet": "Лист1",
+          "sourceRow": 13,
+          "confidence": "high"
+        },
+        {
+          "sequence": 11,
+          "operationId": "ОР-00057",
+          "level": 5,
+          "partOrAssembly": "Multiholder 231265",
+          "name": "Снятие защитной пленки после гибки",
+          "section": "Снятие пленки",
+          "previousOperationCodes": [
+            "ОР-00006"
+          ],
+          "nextOperationCodes": [
+            "ОР-00020"
+          ],
+          "normHours": 0.8,
+          "sourceSheet": "Лист1",
+          "sourceRow": 14,
+          "confidence": "high"
+        },
+        {
+          "sequence": 12,
+          "operationId": "ОР-00058",
+          "level": 5,
+          "partOrAssembly": "Multiholder 231265",
+          "name": "Гибка передних панелей",
+          "section": "Гибка",
+          "previousOperationCodes": [
+            "ОР-00019"
+          ],
+          "nextOperationCodes": [
+            "ОР-00059"
+          ],
+          "normHours": 0.6,
+          "sourceSheet": "Лист1",
+          "sourceRow": 15,
+          "confidence": "high"
+        },
+        {
+          "sequence": 13,
+          "operationId": "ОР-00020",
+          "level": 6,
+          "partOrAssembly": "Multiholder 231265",
+          "name": "Сборка каркасов нагревательных полок",
+          "section": "Бригада Петрулина",
+          "previousOperationCodes": [
+            "ОР-00057",
+            "ОР-00016"
+          ],
+          "nextOperationCodes": [
+            "ОР-00060"
+          ],
+          "normHours": 3,
+          "sourceSheet": "Лист1",
+          "sourceRow": 16,
+          "confidence": "high"
+        },
+        {
+          "sequence": 14,
+          "operationId": "ОР-00059",
+          "level": 6,
+          "partOrAssembly": "Multiholder 231265",
+          "name": "Сборка передних панелей после гибки",
+          "section": "Бригада Петрулина",
+          "previousOperationCodes": [
+            "ОР-00058"
+          ],
+          "nextOperationCodes": [
+            "ОР-00061"
+          ],
+          "normHours": 0.8,
+          "sourceSheet": "Лист1",
+          "sourceRow": 17,
+          "confidence": "high"
+        },
+        {
+          "sequence": 15,
+          "operationId": "ОР-00023",
+          "level": 6,
+          "partOrAssembly": "Multiholder 231265",
+          "name": "Подготовка гильз датчиков",
+          "section": "Бригада Петрулина",
+          "previousOperationCodes": [
+            "ОР-00010"
+          ],
+          "nextOperationCodes": [
+            "ОР-00007"
+          ],
+          "normHours": 0.7,
+          "sourceSheet": "Лист1",
+          "sourceRow": 18,
+          "confidence": "high"
+        },
+        {
+          "sequence": 16,
+          "operationId": "ОР-00061",
+          "level": 7,
+          "partOrAssembly": "Multiholder 231265",
+          "name": "Установка тачскринов в передние панели",
+          "section": "Электромонтаж",
+          "previousOperationCodes": [
+            "ОР-00059"
+          ],
+          "nextOperationCodes": [
+            "ОР-00062"
+          ],
+          "normHours": 1,
+          "sourceSheet": "Лист1",
+          "sourceRow": 19,
+          "confidence": "high"
+        },
+        {
+          "sequence": 17,
+          "operationId": "ОР-00007",
+          "level": 7,
+          "partOrAssembly": "Multiholder 231265",
+          "name": "Сборка датчиков с гильзами",
+          "section": "Электромонтаж",
+          "previousOperationCodes": [
+            "ОР-00023"
+          ],
+          "nextOperationCodes": [
+            "ОР-00060"
+          ],
+          "normHours": 1.2,
+          "sourceSheet": "Лист1",
+          "sourceRow": 20,
+          "confidence": "high"
+        },
+        {
+          "sequence": 18,
+          "operationId": "ОР-00062",
+          "level": 8,
+          "partOrAssembly": "Multiholder 231265",
+          "name": "Наклейка передних панелей",
+          "section": "Бригада Петрулина",
+          "previousOperationCodes": [
+            "ОР-00061"
+          ],
+          "nextOperationCodes": [
+            "ОР-00026"
+          ],
+          "normHours": 0.5,
+          "sourceSheet": "Лист1",
+          "sourceRow": 21,
+          "confidence": "high"
+        },
+        {
+          "sequence": 19,
+          "operationId": "ОР-00060",
+          "level": 7,
+          "partOrAssembly": "Multiholder 231265",
+          "name": "Намотка греющего кабеля на полки и установка датчиков",
+          "section": "Электромонтаж",
+          "previousOperationCodes": [
+            "ОР-00020",
+            "ОР-00007"
+          ],
+          "nextOperationCodes": [
+            "ОР-00024"
+          ],
+          "normHours": 3.5,
+          "sourceSheet": "Лист1",
+          "sourceRow": 22,
+          "confidence": "high"
+        },
+        {
+          "sequence": 20,
+          "operationId": "ОР-00024",
+          "level": 8,
+          "partOrAssembly": "Multiholder 231265",
+          "name": "Окончательная сборка нагревательных полок",
+          "section": "Электромонтаж",
+          "previousOperationCodes": [
+            "ОР-00060"
+          ],
+          "nextOperationCodes": [
+            "ОР-00027"
+          ],
+          "normHours": 2.5,
+          "sourceSheet": "Лист1",
+          "sourceRow": 23,
+          "confidence": "high"
+        },
+        {
+          "sequence": 21,
+          "operationId": "ОР-00009",
+          "level": 9,
+          "partOrAssembly": "Multiholder 231265",
+          "name": "Сборка каркаса изделия",
+          "section": "Бригада Петрулина",
+          "previousOperationCodes": [
+            "ОР-00010"
+          ],
+          "nextOperationCodes": [
+            "ОР-00027"
+          ],
+          "normHours": 3,
+          "sourceSheet": "Лист1",
+          "sourceRow": 24,
+          "confidence": "high"
+        },
+        {
+          "sequence": 22,
+          "operationId": "ОР-00027",
+          "level": 10,
+          "partOrAssembly": "Multiholder 231265",
+          "name": "Установка нагревательных полок в каркас",
+          "section": "Бригада Петрулина",
+          "previousOperationCodes": [
+            "ОР-00009",
+            "ОР-00024"
+          ],
+          "nextOperationCodes": [
+            "ОР-00026"
+          ],
+          "normHours": 2.2,
+          "sourceSheet": "Лист1",
+          "sourceRow": 25,
+          "confidence": "high"
+        },
+        {
+          "sequence": 23,
+          "operationId": "ОР-00026",
+          "level": 11,
+          "partOrAssembly": "Multiholder 231265",
+          "name": "Полный электромонтаж изделия",
+          "section": "Электромонтаж",
+          "previousOperationCodes": [
+            "ОР-00056",
+            "ОР-00062",
+            "ОР-00027"
+          ],
+          "nextOperationCodes": [
+            "ОР-00022"
+          ],
+          "normHours": 4.5,
+          "sourceSheet": "Лист1",
+          "sourceRow": 26,
+          "confidence": "high"
+        },
+        {
+          "sequence": 24,
+          "operationId": "ОР-00022",
+          "level": 12,
+          "partOrAssembly": "Multiholder 231265",
+          "name": "Прошивка изделия",
+          "section": "Прошивка",
+          "previousOperationCodes": [
+            "ОР-00026"
+          ],
+          "nextOperationCodes": [
+            "ОР-00063"
+          ],
+          "normHours": 0.6,
+          "sourceSheet": "Лист1",
+          "sourceRow": 27,
+          "confidence": "high"
+        },
+        {
+          "sequence": 25,
+          "operationId": "ОР-00063",
+          "level": 13,
+          "partOrAssembly": "Multiholder 231265",
+          "name": "Проверка электрических соединений",
+          "section": "Контроль эл. соединений",
+          "previousOperationCodes": [
+            "ОР-00022"
+          ],
+          "nextOperationCodes": [
+            "ОР-00012"
+          ],
+          "normHours": 0.8,
+          "sourceSheet": "Лист1",
+          "sourceRow": 28,
+          "confidence": "high"
+        },
+        {
+          "sequence": 26,
+          "operationId": "ОР-00012",
+          "level": 14,
+          "partOrAssembly": "Multiholder 231265",
+          "name": "Проверка заземления и пробоя",
+          "section": "Электротест",
+          "previousOperationCodes": [
+            "ОР-00063"
+          ],
+          "nextOperationCodes": [
+            "ОР-00014"
+          ],
+          "normHours": 0.6,
+          "sourceSheet": "Лист1",
+          "sourceRow": 29,
+          "confidence": "high"
+        },
+        {
+          "sequence": 27,
+          "operationId": "ОР-00014",
+          "level": 15,
+          "partOrAssembly": "Multiholder 231265",
+          "name": "Окончательная слесарная сборка",
+          "section": "Бригада Петрулина",
+          "previousOperationCodes": [
+            "ОР-00012"
+          ],
+          "nextOperationCodes": [
+            "ОР-00064"
+          ],
+          "normHours": 0.2,
+          "sourceSheet": "Лист1",
+          "sourceRow": 30,
+          "confidence": "high"
+        },
+        {
+          "sequence": 28,
+          "operationId": "ОР-00064",
+          "level": 16,
+          "partOrAssembly": "Multiholder 231265",
+          "name": "Проверка зазоров между полками",
+          "section": "Бригада Петрулина",
+          "previousOperationCodes": [
+            "ОР-00014"
+          ],
+          "nextOperationCodes": [
+            "ОР-00015"
+          ],
+          "normHours": 0.5,
+          "sourceSheet": "Лист1",
+          "sourceRow": 31,
+          "confidence": "high"
+        },
+        {
+          "sequence": 29,
+          "operationId": "ОР-00015",
+          "level": 17,
+          "partOrAssembly": "Multiholder 231265",
+          "name": "Функциональное тестирование изделия",
+          "section": "Тестовый участок",
+          "previousOperationCodes": [
+            "ОР-00064"
+          ],
+          "nextOperationCodes": [
+            "ОР-00040"
+          ],
+          "normHours": 2,
+          "sourceSheet": "Лист1",
+          "sourceRow": 32,
+          "confidence": "high"
+        },
+        {
+          "sequence": 30,
+          "operationId": "ОР-00040",
+          "level": 18,
+          "partOrAssembly": "Multiholder 231265",
+          "name": "Мойка изделия",
+          "section": "Мойка",
+          "previousOperationCodes": [
+            "ОР-00015"
+          ],
+          "nextOperationCodes": [
+            "ОР-00042"
+          ],
+          "normHours": 0.7,
+          "sourceSheet": "Лист1",
+          "sourceRow": 33,
+          "confidence": "high"
+        },
+        {
+          "sequence": 31,
+          "operationId": "ОР-00042",
+          "level": 19,
+          "partOrAssembly": "Multiholder 231265",
+          "name": "Наклейка маркировки и шильд",
+          "section": "Бригада Петрулина",
+          "previousOperationCodes": [
+            "ОР-00040"
+          ],
+          "nextOperationCodes": [
+            "ОР-00065"
+          ],
+          "normHours": 0.4,
+          "sourceSheet": "Лист1",
+          "sourceRow": 34,
+          "confidence": "high"
+        },
+        {
+          "sequence": 32,
+          "operationId": "ОР-00065",
+          "level": 19,
+          "partOrAssembly": "Multiholder 231265",
+          "name": "Комплектовка",
+          "section": "Комплектовка",
+          "previousOperationCodes": [
+            "ОР-00042"
+          ],
+          "nextOperationCodes": [
+            "ОР-00044"
+          ],
+          "normHours": 0.5,
+          "sourceSheet": "Лист1",
+          "sourceRow": 35,
+          "confidence": "high"
+        },
+        {
+          "sequence": 33,
+          "operationId": "ОР-00044",
+          "level": 20,
+          "partOrAssembly": "Multiholder 231265",
+          "name": "Упаковка изделия",
+          "section": "Упаковка",
+          "previousOperationCodes": [
+            "ОР-00065"
+          ],
+          "nextOperationCodes": [],
+          "normHours": 1,
+          "sourceSheet": "Лист1",
+          "sourceRow": 36,
+          "confidence": "high"
+        }
+      ],
+      "totalNormHours": 39.8,
+      "confidence": "high",
+      "notes": [
+        "XLSM прочитан как workbook/data archive без выполнения VBA-макросов.",
+        "Категория задана как безопасная demo-нормализация: в явном виде общий вид номенклатуры в анализируемых ячейках не найден."
+      ]
+    }
+  ]
+}

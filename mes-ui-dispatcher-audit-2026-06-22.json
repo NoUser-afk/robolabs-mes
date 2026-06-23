@@ -1,0 +1,1843 @@
+{
+  "tabs": [
+    "План производства",
+    "Терминал участка",
+    "Граф процесса",
+    "Номенклатура",
+    "Справочник участков",
+    "Справочник операций",
+    "Смены и KPI",
+    "Партии",
+    "Импорт Excel",
+    "Заказы",
+    "Архив"
+  ],
+  "results": [
+    {
+      "name": "План производства",
+      "elapsedMs": 915,
+      "title": "Рабочее место диспетчера",
+      "hits": [
+        "RUN-",
+        "ОР-",
+        "production runs",
+        "Завис."
+      ],
+      "codeSamples": [
+        "ОР-00027",
+        "ОР-00024",
+        "ОР-00056",
+        "ОР-00060",
+        "ОР-00003",
+        "RUN-1781005097260"
+      ],
+      "headers": [
+        "НОМЕНКЛАТУРА / ЗАКАЗ",
+        "ЗАПУСК",
+        "ЕД.",
+        "СЛЕДУЮЩИЙ УЧАСТОК И ОПЕРАЦИЯ",
+        "СТАТУС",
+        "ПРОГРЕСС",
+        "ГОТОВО",
+        "ЗАВИС.",
+        "ДЕЙСТВИЕ"
+      ],
+      "inputs": [
+        {
+          "tag": "input",
+          "placeholder": "Поиск: заказ, запуск, номенклатура, инициатор",
+          "aria": "Поиск по плану диспетчера",
+          "value": ""
+        },
+        {
+          "tag": "select",
+          "placeholder": "",
+          "aria": "Участок плана",
+          "value": ""
+        }
+      ],
+      "activeAnimations": [
+        {
+          "tag": "div",
+          "cls": "pulse-intro pulse-intro-overlay pulse-intro-terminal",
+          "name": "pulseOverlayOut",
+          "duration": "2.3s",
+          "iteration": "1"
+        },
+        {
+          "tag": "div",
+          "cls": "pulse-grid",
+          "name": "gridDrift",
+          "duration": "6s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "div",
+          "cls": "pulse-stage",
+          "name": "stageRise",
+          "duration": "0.9s",
+          "iteration": "1"
+        },
+        {
+          "tag": "span",
+          "cls": "pulse-ring one",
+          "name": "ringPulse",
+          "duration": "2.25s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "pulse-ring two",
+          "name": "ringPulse",
+          "duration": "2.25s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "pulse-ring three",
+          "name": "ringPulse",
+          "duration": "2.25s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "i",
+          "cls": "",
+          "name": "coreBeat",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "polyline",
+          "cls": "[object SVGAnimatedString]",
+          "name": "waveDraw, waveGlow",
+          "duration": "1.7s",
+          "iteration": "1, infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "div",
+          "cls": "shell app-enter",
+          "name": "appReveal",
+          "duration": "0.48s",
+          "iteration": "1"
+        },
+        {
+          "tag": "div",
+          "cls": "screen-enter screen-enter-dispatch",
+          "name": "screenRise",
+          "duration": "0.38s",
+          "iteration": "1"
+        }
+      ],
+      "orderSample": [
+        {
+          "text": "RoboPulse RoboPulseMESRoboPulseMESДиспетчер demodispatcherВыйтиПлан производстваТерминал участкаДополнительноГраф процес",
+          "opacity": "1",
+          "color": "rgb(0, 0, 0)",
+          "weight": "400"
+        },
+        {
+          "text": "RoboPulseMESRoboPulseMESДиспетчер demodispatcherВыйтиПлан производстваТерминал участкаДополнительноГраф процессаНоменкла",
+          "opacity": "1",
+          "color": "rgb(32, 36, 43)",
+          "weight": "400"
+        },
+        {
+          "text": "RoboPulseMESRoboPulseMESДиспетчер demodispatcherВыйтиПлан производстваТерминал участкаДополнительноГраф процессаНоменкла",
+          "opacity": "1",
+          "color": "rgb(32, 36, 43)",
+          "weight": "400"
+        },
+        {
+          "text": "RoboPulseMESДиспетчер demodispatcherВыйтиПлан производстваТерминал участкаДополнительноГраф процессаНоменклатураСправочн",
+          "opacity": "1",
+          "color": "rgb(32, 36, 43)",
+          "weight": "400"
+        },
+        {
+          "text": "ДиспетчерСводка производства и запуск партий доступны по текущей ролиРабочее место диспетчераЗапуск номенклатуры, переда",
+          "opacity": "1",
+          "color": "rgb(32, 36, 43)",
+          "weight": "400"
+        },
+        {
+          "text": "ДиспетчерСводка производства и запуск партий доступны по текущей ролиРабочее место диспетчераЗапуск номенклатуры, переда",
+          "opacity": "1",
+          "color": "rgb(32, 36, 43)",
+          "weight": "400"
+        }
+      ],
+      "excerpt": "RoboPulse MES Диспетчер demo DISPATCHER Выйти План производства Терминал участка ДОПОЛНИТЕЛЬНО Граф процессаНоменклатураСправочник участковСправочник операцийСмены и KPIПартииИмпорт ExcelЗаказыАрхив Диспетчер Сводка производства и запуск партий доступны по текущей роли Рабочее место диспетчера Запуск номенклатуры, передача операций на участки и короткий контроль узких мест К ЗАПУСКУ ИЗ ЗАКАЗОВ 0 ЕДИНИЦ В ПОТОКЕ 30 ПЕРЕДАТЬ НА УЧАСТКИ 0 В РАБОТЕ / ПАУЗА 22 ОЖИДАЮТ ЗАВИСИМОСТЕЙ 3 ГОТОВО 8 Сейчас в управлении Партии, единицы и блокировки по активному плану 3 ПАРТИИ / ЗАПУСКИ 3 / 3 30 единиц в работе или ожидании ПЕРЕДАТЬ ДАЛЬШЕ 0 нет готовых передач БЛОКИРОВКИ 3 ЗК6-0010025 от 23.03: ОР-00027 ·"
+    },
+    {
+      "name": "Терминал участка",
+      "elapsedMs": 912,
+      "title": "Терминал участка",
+      "hits": [
+        "ОР-",
+        "Unit"
+      ],
+      "codeSamples": [
+        "Unit\nОР-00035"
+      ],
+      "headers": [],
+      "inputs": [
+        {
+          "tag": "select",
+          "placeholder": "",
+          "aria": "",
+          "value": "Балансировка"
+        },
+        {
+          "tag": "select",
+          "placeholder": "",
+          "aria": "",
+          "value": ""
+        },
+        {
+          "tag": "input",
+          "placeholder": "Исполнитель, например Петров",
+          "aria": "",
+          "value": "Петров"
+        },
+        {
+          "tag": "input",
+          "placeholder": "Поиск: операция, заказ, изделие, единица",
+          "aria": "",
+          "value": ""
+        },
+        {
+          "tag": "select",
+          "placeholder": "",
+          "aria": "",
+          "value": ""
+        },
+        {
+          "tag": "select",
+          "placeholder": "",
+          "aria": "",
+          "value": "active"
+        },
+        {
+          "tag": "input",
+          "placeholder": "Заказ / партия",
+          "aria": "",
+          "value": ""
+        },
+        {
+          "tag": "input",
+          "placeholder": "Код изделия",
+          "aria": "",
+          "value": ""
+        },
+        {
+          "tag": "input",
+          "placeholder": "",
+          "aria": "",
+          "value": "on"
+        }
+      ],
+      "activeAnimations": [
+        {
+          "tag": "div",
+          "cls": "pulse-intro pulse-intro-overlay pulse-intro-terminal",
+          "name": "pulseOverlayOut",
+          "duration": "2.3s",
+          "iteration": "1"
+        },
+        {
+          "tag": "div",
+          "cls": "pulse-grid",
+          "name": "gridDrift",
+          "duration": "6s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "div",
+          "cls": "pulse-stage",
+          "name": "stageRise",
+          "duration": "0.9s",
+          "iteration": "1"
+        },
+        {
+          "tag": "span",
+          "cls": "pulse-ring one",
+          "name": "ringPulse",
+          "duration": "2.25s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "pulse-ring two",
+          "name": "ringPulse",
+          "duration": "2.25s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "pulse-ring three",
+          "name": "ringPulse",
+          "duration": "2.25s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "i",
+          "cls": "",
+          "name": "coreBeat",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "polyline",
+          "cls": "[object SVGAnimatedString]",
+          "name": "waveDraw, waveGlow",
+          "duration": "1.7s",
+          "iteration": "1, infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "div",
+          "cls": "shell app-enter",
+          "name": "appReveal",
+          "duration": "0.48s",
+          "iteration": "1"
+        },
+        {
+          "tag": "div",
+          "cls": "screen-enter screen-enter-terminal",
+          "name": "screenRise",
+          "duration": "0.38s",
+          "iteration": "1"
+        },
+        {
+          "tag": "section",
+          "cls": "card terminal-header-card",
+          "name": "terminalSignalIn",
+          "duration": "0.56s",
+          "iteration": "1"
+        }
+      ],
+      "orderSample": [
+        {
+          "text": "RoboPulse RoboPulseMESRoboPulseMESДиспетчер demodispatcherВыйтиПлан производстваТерминал участкаДополнительноГраф процес",
+          "opacity": "1",
+          "color": "rgb(0, 0, 0)",
+          "weight": "400"
+        },
+        {
+          "text": "RoboPulseMESRoboPulseMESДиспетчер demodispatcherВыйтиПлан производстваТерминал участкаДополнительноГраф процессаНоменкла",
+          "opacity": "1",
+          "color": "rgb(32, 36, 43)",
+          "weight": "400"
+        },
+        {
+          "text": "RoboPulseMESRoboPulseMESДиспетчер demodispatcherВыйтиПлан производстваТерминал участкаДополнительноГраф процессаНоменкла",
+          "opacity": "1",
+          "color": "rgb(32, 36, 43)",
+          "weight": "400"
+        },
+        {
+          "text": "RoboPulseMESДиспетчер demodispatcherВыйтиПлан производстваТерминал участкаДополнительноГраф процессаНоменклатураСправочн",
+          "opacity": "1",
+          "color": "rgb(32, 36, 43)",
+          "weight": "400"
+        },
+        {
+          "text": "ОператорТерминал участка с персональной сессией и действиями по операциямТерминал участкаРабочее место оператора: текуща",
+          "opacity": "1",
+          "color": "rgb(32, 36, 43)",
+          "weight": "400"
+        },
+        {
+          "text": "ОператорТерминал участка с персональной сессией и действиями по операциямТерминал участкаРабочее место оператора: текуща",
+          "opacity": "1",
+          "color": "rgb(32, 36, 43)",
+          "weight": "400"
+        }
+      ],
+      "excerpt": "RoboPulse MES Диспетчер demo DISPATCHER Выйти План производства Терминал участка ДОПОЛНИТЕЛЬНО Граф процессаНоменклатураСправочник участковСправочник операцийСмены и KPIПартииИмпорт ExcelЗаказыАрхив Оператор Терминал участка с персональной сессией и действиями по операциям Терминал участка Рабочее место оператора: текущая операция, очередь и быстрые действия УЧАСТОК Балансировка Очередь пуста Обновить Балансировка Бригада Петрулина Бригада Сорокина Гибка Диспетчеризация Зачистка Зачистка машинная Зачистной станок Изделие выпущено Комплектовка Контроль эл. соединений Координатка Лазер Лазерный станок Мойка ОТК Отгрузка Пила Пробивной станок Прошивка Сборка Склад Склад металла Снятие пленки Те"
+    },
+    {
+      "name": "Граф процесса",
+      "elapsedMs": 902,
+      "title": "Граф процесса",
+      "hits": [
+        "ОР-",
+        "unit ",
+        "Ожидает: ОР-"
+      ],
+      "codeSamples": [
+        "ОР-00045",
+        "ОР-00001",
+        "ОР-00002",
+        "ОР-00003",
+        "ОР-00004",
+        "ОР-00010",
+        "ОР-00011"
+      ],
+      "headers": [],
+      "inputs": [
+        {
+          "tag": "select",
+          "placeholder": "",
+          "aria": "",
+          "value": "RUN-1781005097260|RUN-1781005097260-U010"
+        }
+      ],
+      "activeAnimations": [
+        {
+          "tag": "div",
+          "cls": "pulse-intro pulse-intro-overlay pulse-intro-terminal",
+          "name": "pulseOverlayOut",
+          "duration": "2.3s",
+          "iteration": "1"
+        },
+        {
+          "tag": "div",
+          "cls": "pulse-grid",
+          "name": "gridDrift",
+          "duration": "6s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "div",
+          "cls": "pulse-stage",
+          "name": "stageRise",
+          "duration": "0.9s",
+          "iteration": "1"
+        },
+        {
+          "tag": "span",
+          "cls": "pulse-ring one",
+          "name": "ringPulse",
+          "duration": "2.25s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "pulse-ring two",
+          "name": "ringPulse",
+          "duration": "2.25s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "pulse-ring three",
+          "name": "ringPulse",
+          "duration": "2.25s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "i",
+          "cls": "",
+          "name": "coreBeat",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "polyline",
+          "cls": "[object SVGAnimatedString]",
+          "name": "waveDraw, waveGlow",
+          "duration": "1.7s",
+          "iteration": "1, infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "div",
+          "cls": "shell app-enter",
+          "name": "appReveal",
+          "duration": "0.48s",
+          "iteration": "1"
+        },
+        {
+          "tag": "div",
+          "cls": "screen-enter screen-enter-process-graph",
+          "name": "screenRise",
+          "duration": "0.38s",
+          "iteration": "1"
+        }
+      ],
+      "orderSample": [
+        {
+          "text": "RoboPulse RoboPulseMESRoboPulseMESДиспетчер demodispatcherВыйтиПлан производстваТерминал участкаДополнительноГраф процес",
+          "opacity": "1",
+          "color": "rgb(0, 0, 0)",
+          "weight": "400"
+        },
+        {
+          "text": "RoboPulseMESRoboPulseMESДиспетчер demodispatcherВыйтиПлан производстваТерминал участкаДополнительноГраф процессаНоменкла",
+          "opacity": "1",
+          "color": "rgb(32, 36, 43)",
+          "weight": "400"
+        },
+        {
+          "text": "RoboPulseMESRoboPulseMESДиспетчер demodispatcherВыйтиПлан производстваТерминал участкаДополнительноГраф процессаНоменкла",
+          "opacity": "1",
+          "color": "rgb(32, 36, 43)",
+          "weight": "400"
+        },
+        {
+          "text": "RoboPulseMESДиспетчер demodispatcherВыйтиПлан производстваТерминал участкаДополнительноГраф процессаНоменклатураСправочн",
+          "opacity": "1",
+          "color": "rgb(32, 36, 43)",
+          "weight": "400"
+        },
+        {
+          "text": "Граф процессаПоштучный граф этапов изготовления: сделанные, текущие, готовые к старту, заблокированные и предстоящие опе",
+          "opacity": "1",
+          "color": "rgb(32, 36, 43)",
+          "weight": "400"
+        },
+        {
+          "text": "Граф процессаПоштучный граф этапов изготовления: сделанные, текущие, готовые к старту, заблокированные и предстоящие опе",
+          "opacity": "1",
+          "color": "rgb(32, 36, 43)",
+          "weight": "400"
+        }
+      ],
+      "excerpt": "RoboPulse MES Диспетчер demo DISPATCHER Выйти План производства Терминал участка ДОПОЛНИТЕЛЬНО Граф процессаНоменклатураСправочник участковСправочник операцийСмены и KPIПартииИмпорт ExcelЗаказыАрхив Граф процесса Поштучный граф этапов изготовления: сделанные, текущие, готовые к старту, заблокированные и предстоящие операции Выберите позицию изготовления ЗК5-0043659 · Печь для пиццы конвейерная RoboChef 800, электрическая,без двери · unit 10/10 · в работе ЗК5-0043659 · Печь для пиццы конвейерная RoboChef 800, электрическая,без двери · unit 9/10 · в работе ЗК6-0010025 от 23.03 · МН-6-3-TS2 , Мультихолдер (шкаф-мармит), 6 ячеек, общая вместимость 18 контейнеров, тачскрин, · unit 1/10 · в работе"
+    },
+    {
+      "name": "Номенклатура",
+      "elapsedMs": 913,
+      "title": "Номенклатура",
+      "hits": [
+        "ОР-"
+      ],
+      "codeSamples": [
+        "ОР-00001",
+        "ОР-00002",
+        "ОР-00006",
+        "ОР-00003",
+        "ОР-00004",
+        "ОР-00010",
+        "ОР-00011",
+        "ОР-00005",
+        "ОР-00018",
+        "ОР-00014",
+        "ОР-00035",
+        "ОР-00016"
+      ],
+      "headers": [
+        "Участок",
+        "Опер.",
+        "Норма",
+        "Первая операция",
+        "Последняя операция"
+      ],
+      "inputs": [
+        {
+          "tag": "select",
+          "placeholder": "",
+          "aria": "Категория номенклатуры",
+          "value": ""
+        },
+        {
+          "tag": "select",
+          "placeholder": "",
+          "aria": "Номенклатура",
+          "value": "печь-для-пиццы-конвейерная-robochef-800-электрическая-без-двери-209983"
+        }
+      ],
+      "activeAnimations": [
+        {
+          "tag": "div",
+          "cls": "pulse-intro pulse-intro-overlay pulse-intro-terminal",
+          "name": "pulseOverlayOut",
+          "duration": "2.3s",
+          "iteration": "1"
+        },
+        {
+          "tag": "div",
+          "cls": "pulse-grid",
+          "name": "gridDrift",
+          "duration": "6s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "div",
+          "cls": "pulse-stage",
+          "name": "stageRise",
+          "duration": "0.9s",
+          "iteration": "1"
+        },
+        {
+          "tag": "span",
+          "cls": "pulse-ring one",
+          "name": "ringPulse",
+          "duration": "2.25s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "pulse-ring two",
+          "name": "ringPulse",
+          "duration": "2.25s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "pulse-ring three",
+          "name": "ringPulse",
+          "duration": "2.25s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "i",
+          "cls": "",
+          "name": "coreBeat",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "polyline",
+          "cls": "[object SVGAnimatedString]",
+          "name": "waveDraw, waveGlow",
+          "duration": "1.7s",
+          "iteration": "1, infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "div",
+          "cls": "shell app-enter",
+          "name": "appReveal",
+          "duration": "0.48s",
+          "iteration": "1"
+        },
+        {
+          "tag": "div",
+          "cls": "screen-enter screen-enter-nomenclature",
+          "name": "screenRise",
+          "duration": "0.38s",
+          "iteration": "1"
+        }
+      ],
+      "orderSample": [],
+      "excerpt": "RoboPulse MES Диспетчер demo DISPATCHER Выйти План производства Терминал участка ДОПОЛНИТЕЛЬНО Граф процессаНоменклатураСправочник участковСправочник операцийСмены и KPIПартииИмпорт ExcelЗаказыАрхив Номенклатура Карточка номенклатуры из НСИ и техпроцесс изготовления. Пока только чтение. Все категории Ручная номенклатура Номенклатура не выбрана Печь для пиццы конвейерная RoboChef 800, электрическая,без двери · 209983 МН-6-3-TS2 , Мультихолдер (шкаф-мармит), 6 ячеек, общая вместимость 18 контейнеров, тачскрин, · 231265 Тестовая · 000001 Новая номенклатура Печь для пиццы конвейерная RoboChef 800, электрическая,без двери 209983 Ручная номенклатура · 55 операций · 80.8 ч МН-6-3-TS2 , Мультихолдер"
+    },
+    {
+      "name": "Справочник участков",
+      "elapsedMs": 914,
+      "title": "Справочник участков",
+      "hits": [
+        "terminal."
+      ],
+      "codeSamples": [
+        "terminal.23",
+        "terminal.29",
+        "terminal.21",
+        "terminal.05",
+        "terminal.14",
+        "terminal.22",
+        "terminal.06",
+        "terminal.17",
+        "terminal.12",
+        "terminal.31",
+        "terminal.30",
+        "terminal.19"
+      ],
+      "headers": [
+        "Участок",
+        "Статус",
+        "Терминал",
+        "Действие"
+      ],
+      "inputs": [
+        {
+          "tag": "input",
+          "placeholder": "Название участка",
+          "aria": "",
+          "value": ""
+        },
+        {
+          "tag": "input",
+          "placeholder": "Часы/месяц",
+          "aria": "",
+          "value": "160"
+        }
+      ],
+      "activeAnimations": [
+        {
+          "tag": "div",
+          "cls": "pulse-intro pulse-intro-overlay pulse-intro-terminal",
+          "name": "pulseOverlayOut",
+          "duration": "2.3s",
+          "iteration": "1"
+        },
+        {
+          "tag": "div",
+          "cls": "pulse-grid",
+          "name": "gridDrift",
+          "duration": "6s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "div",
+          "cls": "pulse-stage",
+          "name": "stageRise",
+          "duration": "0.9s",
+          "iteration": "1"
+        },
+        {
+          "tag": "span",
+          "cls": "pulse-ring one",
+          "name": "ringPulse",
+          "duration": "2.25s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "pulse-ring two",
+          "name": "ringPulse",
+          "duration": "2.25s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "pulse-ring three",
+          "name": "ringPulse",
+          "duration": "2.25s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "i",
+          "cls": "",
+          "name": "coreBeat",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "polyline",
+          "cls": "[object SVGAnimatedString]",
+          "name": "waveDraw, waveGlow",
+          "duration": "1.7s",
+          "iteration": "1, infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "div",
+          "cls": "shell app-enter",
+          "name": "appReveal",
+          "duration": "0.48s",
+          "iteration": "1"
+        },
+        {
+          "tag": "div",
+          "cls": "screen-enter screen-enter-reference-sections",
+          "name": "screenRise",
+          "duration": "0.38s",
+          "iteration": "1"
+        }
+      ],
+      "orderSample": [],
+      "excerpt": "RoboPulse MES Диспетчер demo DISPATCHER Выйти План производства Терминал участка ДОПОЛНИТЕЛЬНО Граф процессаНоменклатураСправочник участковСправочник операцийСмены и KPIПартииИмпорт ExcelЗаказыАрхив Справочник участков Участки производства и терминалы рабочих мест Добавить участок Участок Статус Терминал Действие Балансировка активен terminal.23 Выключить Бригада Петрулина активен terminal.29 Выключить Бригада Сорокина активен terminal.21 Выключить Гибка активен terminal.05 Выключить Диспетчеризация активен terminal.14 Выключить Зачистка активен terminal.22 Выключить Зачистка машинная активен terminal.06 Выключить Зачистной станок активен terminal.17 Выключить Изделие выпущено активен termin"
+    },
+    {
+      "name": "Справочник операций",
+      "elapsedMs": 901,
+      "title": "Справочник операций",
+      "hits": [
+        "ОР-"
+      ],
+      "codeSamples": [
+        "ОР-00001",
+        "ОР-00002",
+        "ОР-00003",
+        "ОР-00004",
+        "ОР-00005",
+        "ОР-00006",
+        "ОР-00007",
+        "ОР-00008",
+        "ОР-00009",
+        "ОР-00010",
+        "ОР-00011",
+        "ОР-00012"
+      ],
+      "headers": [
+        "Код",
+        "Операция",
+        "Участок",
+        "Норма",
+        "Деталь / узел",
+        "Статус",
+        "Действие"
+      ],
+      "inputs": [
+        {
+          "tag": "input",
+          "placeholder": "Название операции",
+          "aria": "",
+          "value": ""
+        },
+        {
+          "tag": "select",
+          "placeholder": "",
+          "aria": "",
+          "value": ""
+        },
+        {
+          "tag": "input",
+          "placeholder": "Норма, ч",
+          "aria": "",
+          "value": "1"
+        },
+        {
+          "tag": "input",
+          "placeholder": "Деталь / узел",
+          "aria": "",
+          "value": ""
+        }
+      ],
+      "activeAnimations": [
+        {
+          "tag": "div",
+          "cls": "pulse-intro pulse-intro-overlay pulse-intro-terminal",
+          "name": "pulseOverlayOut",
+          "duration": "2.3s",
+          "iteration": "1"
+        },
+        {
+          "tag": "div",
+          "cls": "pulse-grid",
+          "name": "gridDrift",
+          "duration": "6s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "div",
+          "cls": "pulse-stage",
+          "name": "stageRise",
+          "duration": "0.9s",
+          "iteration": "1"
+        },
+        {
+          "tag": "span",
+          "cls": "pulse-ring one",
+          "name": "ringPulse",
+          "duration": "2.25s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "pulse-ring two",
+          "name": "ringPulse",
+          "duration": "2.25s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "pulse-ring three",
+          "name": "ringPulse",
+          "duration": "2.25s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "i",
+          "cls": "",
+          "name": "coreBeat",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "polyline",
+          "cls": "[object SVGAnimatedString]",
+          "name": "waveDraw, waveGlow",
+          "duration": "1.7s",
+          "iteration": "1, infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "div",
+          "cls": "shell app-enter",
+          "name": "appReveal",
+          "duration": "0.48s",
+          "iteration": "1"
+        },
+        {
+          "tag": "div",
+          "cls": "screen-enter screen-enter-reference-operations",
+          "name": "screenRise",
+          "duration": "0.38s",
+          "iteration": "1"
+        }
+      ],
+      "orderSample": [],
+      "excerpt": "RoboPulse MES Диспетчер demo DISPATCHER Выйти План производства Терминал участка ДОПОЛНИТЕЛЬНО Граф процессаНоменклатураСправочник участковСправочник операцийСмены и KPIПартииИмпорт ExcelЗаказыАрхив Справочник операций Типовые операции для конструктора техпроцесса Участок не выбран Балансировка Бригада Петрулина Бригада Сорокина Гибка Диспетчеризация Зачистка Зачистка машинная Зачистной станок Изделие выпущено Комплектовка Контроль эл. соединений Координатка Лазер Лазерный станок Мойка ОТК Отгрузка Пила Пробивной станок Прошивка Сборка Склад Склад металла Снятие пленки Тест Тестовый участок Технолог Токарка Токарный участок Упаковка Штамповка Электромонтаж Электротест Добавить операцию Код О"
+    },
+    {
+      "name": "Смены и KPI",
+      "elapsedMs": 914,
+      "title": "Смены и KPI",
+      "hits": [
+        "NO_MATERIAL",
+        "WAIT_PREVIOUS_STAGE"
+      ],
+      "codeSamples": [],
+      "headers": [
+        "Код",
+        "Причина",
+        "Категория",
+        "Исполнитель",
+        "Опер.",
+        "Готово",
+        "Факт",
+        "Норма",
+        "KPI"
+      ],
+      "inputs": [
+        {
+          "tag": "select",
+          "placeholder": "",
+          "aria": "",
+          "value": "Балансировка"
+        },
+        {
+          "tag": "input",
+          "placeholder": "",
+          "aria": "",
+          "value": "2026-06-22"
+        },
+        {
+          "tag": "select",
+          "placeholder": "",
+          "aria": "",
+          "value": ""
+        },
+        {
+          "tag": "select",
+          "placeholder": "",
+          "aria": "",
+          "value": "Балансировка"
+        },
+        {
+          "tag": "select",
+          "placeholder": "",
+          "aria": "",
+          "value": ""
+        },
+        {
+          "tag": "input",
+          "placeholder": "",
+          "aria": "",
+          "value": "2026-06-22T08:00"
+        },
+        {
+          "tag": "input",
+          "placeholder": "",
+          "aria": "",
+          "value": "2026-06-22T20:00"
+        },
+        {
+          "tag": "input",
+          "placeholder": "Бригада",
+          "aria": "",
+          "value": ""
+        },
+        {
+          "tag": "input",
+          "placeholder": "Мастер",
+          "aria": "",
+          "value": ""
+        }
+      ],
+      "activeAnimations": [
+        {
+          "tag": "div",
+          "cls": "pulse-intro pulse-intro-overlay pulse-intro-terminal",
+          "name": "pulseOverlayOut",
+          "duration": "2.3s",
+          "iteration": "1"
+        },
+        {
+          "tag": "div",
+          "cls": "pulse-grid",
+          "name": "gridDrift",
+          "duration": "6s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "div",
+          "cls": "pulse-stage",
+          "name": "stageRise",
+          "duration": "0.9s",
+          "iteration": "1"
+        },
+        {
+          "tag": "span",
+          "cls": "pulse-ring one",
+          "name": "ringPulse",
+          "duration": "2.25s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "pulse-ring two",
+          "name": "ringPulse",
+          "duration": "2.25s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "pulse-ring three",
+          "name": "ringPulse",
+          "duration": "2.25s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "i",
+          "cls": "",
+          "name": "coreBeat",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "polyline",
+          "cls": "[object SVGAnimatedString]",
+          "name": "waveDraw, waveGlow",
+          "duration": "1.7s",
+          "iteration": "1, infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "div",
+          "cls": "shell app-enter",
+          "name": "appReveal",
+          "duration": "0.48s",
+          "iteration": "1"
+        },
+        {
+          "tag": "div",
+          "cls": "screen-enter screen-enter-shifts-kpi",
+          "name": "screenRise",
+          "duration": "0.38s",
+          "iteration": "1"
+        }
+      ],
+      "orderSample": [],
+      "excerpt": "RoboPulse MES Диспетчер demo DISPATCHER Выйти План производства Терминал участка ДОПОЛНИТЕЛЬНО Граф процессаНоменклатураСправочник участковСправочник операцийСмены и KPIПартииИмпорт ExcelЗаказыАрхив Смены и KPI Рабочие центры, причины отклонений и сменная производительность из нормализованного факта Фильтр отчетов Все участки Балансировка Бригада Петрулина Бригада Сорокина Гибка Диспетчеризация Зачистка Зачистка машинная Зачистной станок Изделие выпущено Комплектовка Контроль эл. соединений Координатка Лазер Лазерный станок Мойка ОТК Отгрузка Пила Пробивной станок Прошивка Сборка Склад Склад металла Снятие пленки Тест Тестовый участок Технолог Токарка Токарный участок Упаковка Штамповка Элек"
+    },
+    {
+      "name": "Партии",
+      "elapsedMs": 915,
+      "title": "Запуск партии",
+      "hits": [
+        "RUN-",
+        "ОР-"
+      ],
+      "codeSamples": [
+        "ОР-00001",
+        "RUN-1781863477298-E1C285D2",
+        "RUN-1781006922965",
+        "RUN-1781005097260",
+        "ОР-00002"
+      ],
+      "headers": [
+        "НОМЕНКЛАТУРА",
+        "ЗАПУСК",
+        "ЕД.",
+        "ТЕКУЩАЯ ОПЕРАЦИЯ",
+        "СТАТУС",
+        "ПРОГРЕСС",
+        "ДИСПЕТЧЕРИЗАЦИЯ",
+        "ГОТОВО",
+        "ЗАВИС.",
+        "ДЕЙСТВИЕ"
+      ],
+      "inputs": [
+        {
+          "tag": "input",
+          "placeholder": "Номер заказа, до 20 символов",
+          "aria": "",
+          "value": ""
+        },
+        {
+          "tag": "select",
+          "placeholder": "",
+          "aria": "",
+          "value": "печь-для-пиццы-конвейерная-robochef-800-электрическая-без-двери-209983"
+        },
+        {
+          "tag": "input",
+          "placeholder": "",
+          "aria": "",
+          "value": "1"
+        },
+        {
+          "tag": "select",
+          "placeholder": "",
+          "aria": "",
+          "value": "normal"
+        },
+        {
+          "tag": "input",
+          "placeholder": "Оператор / инициатор",
+          "aria": "",
+          "value": ""
+        }
+      ],
+      "activeAnimations": [
+        {
+          "tag": "div",
+          "cls": "pulse-intro pulse-intro-overlay pulse-intro-terminal",
+          "name": "pulseOverlayOut",
+          "duration": "2.3s",
+          "iteration": "1"
+        },
+        {
+          "tag": "div",
+          "cls": "pulse-grid",
+          "name": "gridDrift",
+          "duration": "6s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "div",
+          "cls": "pulse-stage",
+          "name": "stageRise",
+          "duration": "0.9s",
+          "iteration": "1"
+        },
+        {
+          "tag": "span",
+          "cls": "pulse-ring one",
+          "name": "ringPulse",
+          "duration": "2.25s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "pulse-ring two",
+          "name": "ringPulse",
+          "duration": "2.25s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "pulse-ring three",
+          "name": "ringPulse",
+          "duration": "2.25s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "i",
+          "cls": "",
+          "name": "coreBeat",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "polyline",
+          "cls": "[object SVGAnimatedString]",
+          "name": "waveDraw, waveGlow",
+          "duration": "1.7s",
+          "iteration": "1, infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "div",
+          "cls": "shell app-enter",
+          "name": "appReveal",
+          "duration": "0.48s",
+          "iteration": "1"
+        },
+        {
+          "tag": "div",
+          "cls": "screen-enter screen-enter-production",
+          "name": "screenRise",
+          "duration": "0.38s",
+          "iteration": "1"
+        }
+      ],
+      "orderSample": [
+        {
+          "text": "RoboPulse RoboPulseMESRoboPulseMESДиспетчер demodispatcherВыйтиПлан производстваТерминал участкаДополнительноГраф процес",
+          "opacity": "1",
+          "color": "rgb(0, 0, 0)",
+          "weight": "400"
+        },
+        {
+          "text": "RoboPulseMESRoboPulseMESДиспетчер demodispatcherВыйтиПлан производстваТерминал участкаДополнительноГраф процессаНоменкла",
+          "opacity": "1",
+          "color": "rgb(32, 36, 43)",
+          "weight": "400"
+        },
+        {
+          "text": "RoboPulseMESRoboPulseMESДиспетчер demodispatcherВыйтиПлан производстваТерминал участкаДополнительноГраф процессаНоменкла",
+          "opacity": "1",
+          "color": "rgb(32, 36, 43)",
+          "weight": "400"
+        },
+        {
+          "text": "RoboPulseMESДиспетчер demodispatcherВыйтиПлан производстваТерминал участкаДополнительноГраф процессаНоменклатураСправочн",
+          "opacity": "1",
+          "color": "rgb(32, 36, 43)",
+          "weight": "400"
+        },
+        {
+          "text": "Запуск партииПроизводственный документ: номер партии, заказ, номенклатура из НСИ и количество единицНовая партияВыберите",
+          "opacity": "1",
+          "color": "rgb(32, 36, 43)",
+          "weight": "400"
+        },
+        {
+          "text": "Запуск партииПроизводственный документ: номер партии, заказ, номенклатура из НСИ и количество единицНовая партияВыберите",
+          "opacity": "1",
+          "color": "rgb(32, 36, 43)",
+          "weight": "400"
+        }
+      ],
+      "excerpt": "RoboPulse MES Диспетчер demo DISPATCHER Выйти План производства Терминал участка ДОПОЛНИТЕЛЬНО Граф процессаНоменклатураСправочник участковСправочник операцийСмены и KPIПартииИмпорт ExcelЗаказыАрхив Запуск партии Производственный документ: номер партии, заказ, номенклатура из НСИ и количество единиц Новая партия Выберите номенклатуру Печь для пиццы конвейерная RoboChef 800, электрическая,без двери · 209983 · 55 операций МН-6-3-TS2 , Мультихолдер (шкаф-мармит), 6 ячеек, общая вместимость 18 контейнеров, тачскрин, · 231265 · 33 операций Тестовая · 000001 · 4 операций Высокий приоритет Обычный приоритет Низкий приоритет Запустить партию Партия хранит номер, выбранную номенклатуру, количество, и"
+    },
+    {
+      "name": "Импорт Excel",
+      "elapsedMs": 915,
+      "title": "Импорт заказов из Excel",
+      "hits": [],
+      "codeSamples": [],
+      "headers": [],
+      "inputs": [
+        {
+          "tag": "input",
+          "placeholder": "",
+          "aria": "",
+          "value": ""
+        }
+      ],
+      "activeAnimations": [
+        {
+          "tag": "div",
+          "cls": "pulse-intro pulse-intro-overlay pulse-intro-terminal",
+          "name": "pulseOverlayOut",
+          "duration": "2.3s",
+          "iteration": "1"
+        },
+        {
+          "tag": "div",
+          "cls": "pulse-grid",
+          "name": "gridDrift",
+          "duration": "6s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "div",
+          "cls": "pulse-stage",
+          "name": "stageRise",
+          "duration": "0.9s",
+          "iteration": "1"
+        },
+        {
+          "tag": "span",
+          "cls": "pulse-ring one",
+          "name": "ringPulse",
+          "duration": "2.25s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "pulse-ring two",
+          "name": "ringPulse",
+          "duration": "2.25s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "pulse-ring three",
+          "name": "ringPulse",
+          "duration": "2.25s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "i",
+          "cls": "",
+          "name": "coreBeat",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "polyline",
+          "cls": "[object SVGAnimatedString]",
+          "name": "waveDraw, waveGlow",
+          "duration": "1.7s",
+          "iteration": "1, infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "div",
+          "cls": "shell app-enter",
+          "name": "appReveal",
+          "duration": "0.48s",
+          "iteration": "1"
+        },
+        {
+          "tag": "div",
+          "cls": "screen-enter screen-enter-import",
+          "name": "screenRise",
+          "duration": "0.38s",
+          "iteration": "1"
+        }
+      ],
+      "orderSample": [],
+      "excerpt": "RoboPulse MES Диспетчер demo DISPATCHER Выйти План производства Терминал участка ДОПОЛНИТЕЛЬНО Граф процессаНоменклатураСправочник участковСправочник операцийСмены и KPIПартииИмпорт ExcelЗаказыАрхив Импорт заказов из Excel Импортировать"
+    },
+    {
+      "name": "Заказы",
+      "elapsedMs": 901,
+      "title": "Заказы",
+      "hits": [],
+      "codeSamples": [],
+      "headers": [],
+      "inputs": [],
+      "activeAnimations": [
+        {
+          "tag": "div",
+          "cls": "pulse-intro pulse-intro-overlay pulse-intro-terminal",
+          "name": "pulseOverlayOut",
+          "duration": "2.3s",
+          "iteration": "1"
+        },
+        {
+          "tag": "div",
+          "cls": "pulse-grid",
+          "name": "gridDrift",
+          "duration": "6s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "div",
+          "cls": "pulse-stage",
+          "name": "stageRise",
+          "duration": "0.9s",
+          "iteration": "1"
+        },
+        {
+          "tag": "span",
+          "cls": "pulse-ring one",
+          "name": "ringPulse",
+          "duration": "2.25s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "pulse-ring two",
+          "name": "ringPulse",
+          "duration": "2.25s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "pulse-ring three",
+          "name": "ringPulse",
+          "duration": "2.25s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "i",
+          "cls": "",
+          "name": "coreBeat",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "polyline",
+          "cls": "[object SVGAnimatedString]",
+          "name": "waveDraw, waveGlow",
+          "duration": "1.7s",
+          "iteration": "1, infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "div",
+          "cls": "shell app-enter",
+          "name": "appReveal",
+          "duration": "0.48s",
+          "iteration": "1"
+        },
+        {
+          "tag": "div",
+          "cls": "screen-enter screen-enter-orders",
+          "name": "screenRise",
+          "duration": "0.38s",
+          "iteration": "1"
+        }
+      ],
+      "orderSample": [],
+      "excerpt": "RoboPulse MES Диспетчер demo DISPATCHER Выйти План производства Терминал участка ДОПОЛНИТЕЛЬНО Граф процессаНоменклатураСправочник участковСправочник операцийСмены и KPIПартииИмпорт ExcelЗаказыАрхив Заказы"
+    },
+    {
+      "name": "Архив",
+      "elapsedMs": 901,
+      "title": "Архив",
+      "hits": [
+        "RUN-"
+      ],
+      "codeSamples": [
+        "RUN-1781156859999-A0A0AF8C",
+        "RUN-1780663388563",
+        "RUN-1780657695556",
+        "RUN-1780553154964",
+        "RUN-1780487828337"
+      ],
+      "headers": [
+        "Запуск",
+        "Номенклатура",
+        "Заказ",
+        "Количество",
+        "Готовность",
+        "Факт",
+        "Завершено"
+      ],
+      "inputs": [],
+      "activeAnimations": [
+        {
+          "tag": "div",
+          "cls": "pulse-intro pulse-intro-overlay pulse-intro-terminal",
+          "name": "pulseOverlayOut",
+          "duration": "2.3s",
+          "iteration": "1"
+        },
+        {
+          "tag": "div",
+          "cls": "pulse-grid",
+          "name": "gridDrift",
+          "duration": "6s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "div",
+          "cls": "pulse-stage",
+          "name": "stageRise",
+          "duration": "0.9s",
+          "iteration": "1"
+        },
+        {
+          "tag": "span",
+          "cls": "pulse-ring one",
+          "name": "ringPulse",
+          "duration": "2.25s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "pulse-ring two",
+          "name": "ringPulse",
+          "duration": "2.25s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "pulse-ring three",
+          "name": "ringPulse",
+          "duration": "2.25s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "i",
+          "cls": "",
+          "name": "coreBeat",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "polyline",
+          "cls": "[object SVGAnimatedString]",
+          "name": "waveDraw, waveGlow",
+          "duration": "1.7s",
+          "iteration": "1, infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "span",
+          "cls": "",
+          "name": "barPulse",
+          "duration": "1.05s",
+          "iteration": "infinite"
+        },
+        {
+          "tag": "div",
+          "cls": "shell app-enter",
+          "name": "appReveal",
+          "duration": "0.48s",
+          "iteration": "1"
+        },
+        {
+          "tag": "div",
+          "cls": "screen-enter screen-enter-archive",
+          "name": "screenRise",
+          "duration": "0.38s",
+          "iteration": "1"
+        }
+      ],
+      "orderSample": [],
+      "excerpt": "RoboPulse MES Диспетчер demo DISPATCHER Выйти План производства Терминал участка ДОПОЛНИТЕЛЬНО Граф процессаНоменклатураСправочник участковСправочник операцийСмены и KPIПартииИмпорт ExcelЗаказыАрхив Архив Завершенные заказы и готовые запуски номенклатуры. Заказы 0000001 100% FURNACE-DEMO Печь промышленная Количество: 3 Срок: 30.06.2026 Запуски номенклатуры Запуск Номенклатура Заказ Количество Готовность Факт Завершено RUN-1781156859999-A0A0AF8C открыть карточку Тестовая 000001 666 1 100% 7 мин 11.06.2026, 08:54:45 RUN-1780663388563 открыть карточку Тестовая 000001 12345 5 100% 94.8 ч (5691 мин) 09.06.2026, 14:34:02 RUN-1780657695556 открыть карточку RC800 209983 02 1 100% 1.4 ч (87 мин) 05.0"
+    }
+  ],
+  "apiResourceCount": 46,
+  "now": "2026-06-22T05:40:13.718Z"
+}

@@ -1,0 +1,67 @@
+[
+    {
+        "section":  "Изделие выпущено",
+        "availableHours":  160,
+        "weldHours":  null
+    },
+    {
+        "section":  "Технолог",
+        "availableHours":  160,
+        "weldHours":  null
+    },
+    {
+        "section":  "Лазер",
+        "availableHours":  160,
+        "weldHours":  null
+    },
+    {
+        "section":  "Пробивной станок",
+        "availableHours":  160,
+        "weldHours":  null
+    },
+    {
+        "section":  "Пила",
+        "availableHours":  160,
+        "weldHours":  null
+    },
+    {
+        "section":  "Склад",
+        "availableHours":  160,
+        "weldHours":  null
+    },
+    {
+        "section":  "Гибка",
+        "availableHours":  160,
+        "weldHours":  null
+    },
+    {
+        "section":  "Зачистка машинная",
+        "availableHours":  160,
+        "weldHours":  null
+    },
+    {
+        "section":  "Токарка",
+        "availableHours":  160,
+        "weldHours":  null
+    },
+    {
+        "section":  "Электромонтаж",
+        "availableHours":  160,
+        "weldHours":  null
+    },
+    {
+        "section":  "Сборка",
+        "availableHours":  160,
+        "weldHours":  null
+    },
+    {
+        "section":  "ОТК",
+        "availableHours":  160,
+        "weldHours":  null
+    },
+    {
+        "section":  "Отгрузка",
+        "availableHours":  160,
+        "weldHours":  null
+    }
+]

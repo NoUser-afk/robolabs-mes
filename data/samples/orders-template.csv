@@ -1,0 +1,4 @@
+orderNumber,productCode,productName,quantity,dueDate,customer,priority,comment
+RC800-001,209983,RoboLabs изделие 209983,1,2026-06-30,Demo customer,normal,Первый тестовый заказ
+RC800-002,209983,RoboLabs изделие 209983,2,2026-07-15,Demo customer,high,Второй тестовый заказ
+

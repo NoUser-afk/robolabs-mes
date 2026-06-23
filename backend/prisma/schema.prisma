@@ -1,0 +1,496 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum OperationStatus {
+  new
+  work
+  done
+}
+
+model Order {
+  id          Int              @id @default(autoincrement())
+  orderNumber String           @unique
+  productCode String
+  productName String?
+  quantity    Int
+  dueDate     DateTime?
+  customer    String?
+  priority    String?
+  comment     String?
+  sourceFile  String?
+  status      String           @default("active")
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  operations  OrderOperation[]
+  events      OperationEvent[]
+  timeTrackings TimeTracking[]
+  qualityRecords QualityRecord[]
+}
+
+model RouteTemplate {
+  id          Int              @id @default(autoincrement())
+  productCode String
+  name        String
+  version     String
+  isActive    Boolean          @default(true)
+  operations  RouteOperation[]
+
+  @@unique([productCode, version])
+}
+
+model RouteOperation {
+  id                     Int           @id @default(autoincrement())
+  routeTemplateId         Int
+  operationCode           String
+  flow                    String
+  name                    String
+  section                 String
+  normHours               Float
+  previousOperationCodes  String[]
+  nextOperationCodes      String[]
+  sortOrder               Int
+  routeTemplate           RouteTemplate @relation(fields: [routeTemplateId], references: [id], onDelete: Cascade)
+
+  @@unique([routeTemplateId, operationCode])
+}
+
+model OrderOperation {
+  id            Int             @id @default(autoincrement())
+  orderId       Int
+  operationCode String
+  flow          String
+  name          String
+  section       String
+  normHours     Float
+  previousOperationCodes String[]
+  nextOperationCodes     String[]
+  sortOrder     Int
+  status        OperationStatus @default(new)
+  lifecycleStatus String        @default("new")
+  assignedPersonId Int?
+  startedAt     DateTime?
+  finishedAt    DateTime?
+  actualHours   Float?
+  pauseHours     Float?         @default(0)
+  comment       String?
+  order         Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  assignedPerson Person?        @relation(fields: [assignedPersonId], references: [id])
+  events        OperationEvent[]
+  timeTrackings TimeTracking[]
+  qualityRecords QualityRecord[]
+
+  @@unique([orderId, operationCode])
+}
+
+model Person {
+  id         Int              @id @default(autoincrement())
+  fullName   String
+  section    String
+  isActive   Boolean          @default(true)
+  operations OrderOperation[]
+  events     OperationEvent[]
+  timeTrackings TimeTracking[]
+  qualityRecords QualityRecord[]
+  users      AppUser[]
+  managedWorkCenters WorkCenter[]
+}
+
+model OperationEvent {
+  id               Int             @id @default(autoincrement())
+  orderId          Int
+  orderOperationId Int
+  eventType        String
+  personId         Int?
+  timestamp        DateTime        @default(now())
+  payload          Json?
+  order            Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderOperation   OrderOperation  @relation(fields: [orderOperationId], references: [id], onDelete: Cascade)
+  person           Person?         @relation(fields: [personId], references: [id])
+}
+
+model TimeTracking {
+  id               Int             @id @default(autoincrement())
+  orderOperationId Int
+  orderId          Int
+  personId         Int?
+  kind             String
+  startedAt        DateTime        @default(now())
+  endedAt          DateTime?
+  durationMinutes  Int?
+  comment          String?
+  reasonCode       String?
+  timeCategory     String?
+  shiftId          Int?
+  createdAt        DateTime        @default(now())
+  orderOperation   OrderOperation  @relation(fields: [orderOperationId], references: [id], onDelete: Cascade)
+  order            Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  person           Person?         @relation(fields: [personId], references: [id])
+  shift            WorkShift?      @relation(fields: [shiftId], references: [id])
+
+  @@index([orderOperationId, kind, endedAt])
+  @@index([orderId])
+  @@index([shiftId])
+  @@index([reasonCode])
+}
+
+model QualityRecord {
+  id               Int             @id @default(autoincrement())
+  orderOperationId Int
+  orderId          Int
+  personId         Int?
+  checkedQty       Int             @default(0)
+  acceptedQty      Int             @default(0)
+  defectQty        Int             @default(0)
+  reworkQty        Int             @default(0)
+  defectReason     String?
+  reasonCode       String?
+  responsibleOperationCode String?
+  inspector        String?
+  status           String          @default("recorded")
+  comment          String?
+  recordedAt       DateTime        @default(now())
+  orderOperation   OrderOperation  @relation(fields: [orderOperationId], references: [id], onDelete: Cascade)
+  order            Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  person           Person?         @relation(fields: [personId], references: [id])
+
+  @@index([orderOperationId])
+  @@index([orderId])
+  @@index([reasonCode])
+}
+
+model AppUser {
+  id        Int      @id @default(autoincrement())
+  login     String   @unique
+  role      String
+  displayName String
+  passwordHash String?
+  terminalQrToken String? @unique
+  workCenterSection String?
+  isTerminalOnly Boolean @default(false)
+  lastLoginAt DateTime?
+  personId  Int?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  person    Person?  @relation(fields: [personId], references: [id])
+}
+
+model ImportBatch {
+  id          Int      @id @default(autoincrement())
+  fileName    String
+  uploadedAt  DateTime @default(now())
+  status      String
+  rowsTotal   Int      @default(0)
+  rowsCreated Int      @default(0)
+  rowsUpdated Int      @default(0)
+  errorsJson  Json?
+}
+
+model SectionCapacity {
+  id             Int    @id @default(autoincrement())
+  section        String
+  availableHours Float
+  weldHours      Float?
+  period         String @default("month")
+
+  @@unique([section, period])
+}
+
+model ReferenceSection {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  workCenters WorkCenter[]
+}
+
+model ReferenceOperation {
+  id            Int      @id @default(autoincrement())
+  operationCode String   @unique
+  name          String
+  defaultSection String?
+  defaultNormHours Float?
+  partOrAssembly String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([defaultSection])
+}
+
+model NomenclatureProcessRecord {
+  id             String   @id
+  equipment      String
+  productCode    String
+  category       String
+  operationsCount Int     @default(0)
+  totalNormHours Float    @default(0)
+  confidence     String   @default("manual")
+  data           Json
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([productCode])
+  @@index([category])
+}
+
+model ProductionRunRecord {
+  id          String   @id
+  orderId     Int?
+  orderNumber String?  @db.VarChar(20)
+  productId   String?
+  productCode String?
+  productName String?
+  quantity    Int?
+  status      String?
+  priority    String?
+  operator    String?
+  startedAt   DateTime?
+  completedAt DateTime?
+  data        Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([orderNumber])
+  @@index([productCode])
+  @@index([status])
+}
+
+model ProductionRun {
+  id               String           @id
+  legacyRecordId   String?
+  orderId          Int?
+  orderNumber      String?          @db.VarChar(20)
+  batchNumber      String?
+  batchName        String?
+  batchCreatedBy   String?
+  batchSource      String?
+  productId        String
+  productCode      String
+  productName      String
+  quantity         Int
+  totalQuantity    Int?
+  launchedQuantity Int?
+  status           String           @default("draft")
+  priority         String           @default("normal")
+  priorityRank     Int?
+  operator         String?
+  comment          String?
+  archived         Boolean          @default(false)
+  testData         Boolean          @default(false)
+  createdAt        DateTime         @default(now())
+  startedAt        DateTime?
+  completedAt      DateTime?
+  updatedAt        DateTime         @updatedAt
+  units            ProductionUnit[]
+  operations       ProductionUnitOperation[]
+  events           ProductionOperationEvent[]
+
+  @@index([orderNumber])
+  @@index([productCode])
+  @@index([status])
+  @@index([orderId, status])
+  @@index([archived, testData, status])
+}
+
+model ProductionUnit {
+  id          String                    @id
+  runId       String
+  unitNo      Int
+  status      String                    @default("draft")
+  progress    Float                     @default(0)
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime                  @default(now())
+  updatedAt   DateTime                  @updatedAt
+  run         ProductionRun             @relation(fields: [runId], references: [id], onDelete: Cascade)
+  operations  ProductionUnitOperation[]
+  events      ProductionOperationEvent[]
+
+  @@unique([runId, unitNo])
+  @@index([runId, status])
+  @@index([status, updatedAt])
+}
+
+model ProductionUnitOperation {
+  id                     String                     @id
+  runId                  String
+  unitId                 String?
+  operationId            String
+  sequence               Int
+  level                  Int?
+  partOrAssembly         String
+  name                   String
+  section                String
+  previousOperationCodes String[]
+  nextOperationCodes     String[]
+  normHours              Float
+  status                 String                     @default("queued")
+  priority               String                     @default("normal")
+  priorityRank           Int?
+  lockedBy               String?
+  lockedAt               DateTime?
+  lockReason             String?
+  lockToken              String?
+  lockTerminalId         String?
+  lockClientId           String?
+  lockExpiresAt          DateTime?
+  lockVersion            Int                        @default(0)
+  selectedAt             DateTime?
+  startedAt              DateTime?
+  pausedAt               DateTime?
+  completedAt            DateTime?
+  actualHours            Float                      @default(0)
+  shiftId                Int?
+  pauseReasonCode        String?
+  deviationReasonCode    String?
+  timeCategory           String?
+  acceptedQty            Int                        @default(0)
+  defectQty              Int                        @default(0)
+  reworkQty              Int                        @default(0)
+  qualityStatus          String?
+  groupCapable           Boolean                    @default(false)
+  createdAt              DateTime                   @default(now())
+  updatedAt              DateTime                   @updatedAt
+  run                    ProductionRun              @relation(fields: [runId], references: [id], onDelete: Cascade)
+  unit                   ProductionUnit?            @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  shift                  WorkShift?                 @relation(fields: [shiftId], references: [id])
+  events                 ProductionOperationEvent[]
+
+  @@unique([runId, unitId, operationId])
+  @@index([runId, status])
+  @@index([runId, unitId, status])
+  @@index([unitId, status])
+  @@index([section, status])
+  @@index([section, status, lockExpiresAt])
+  @@index([lockToken])
+  @@index([lockExpiresAt])
+  @@index([section, status, updatedAt])
+  @@index([operationId, status])
+  @@index([shiftId])
+  @@index([pauseReasonCode])
+  @@index([deviationReasonCode])
+}
+
+model ProductionOperationEvent {
+  id          Int                      @id @default(autoincrement())
+  runId       String
+  unitId      String?
+  operationPk String?
+  eventType   String
+  actor       String?
+  timestamp   DateTime                 @default(now())
+  payload     Json?
+  shiftId     Int?
+  reasonCode  String?
+  timeCategory String?
+  run         ProductionRun             @relation(fields: [runId], references: [id], onDelete: Cascade)
+  unit        ProductionUnit?           @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  operation   ProductionUnitOperation?  @relation(fields: [operationPk], references: [id], onDelete: SetNull)
+  shift       WorkShift?                @relation(fields: [shiftId], references: [id])
+
+  @@index([runId, timestamp])
+  @@index([runId, eventType, timestamp])
+  @@index([unitId])
+  @@index([unitId, timestamp])
+  @@index([operationPk])
+  @@index([eventType])
+  @@index([timestamp])
+  @@index([shiftId])
+  @@index([reasonCode])
+}
+
+model WorkCenter {
+  id              Int              @id @default(autoincrement())
+  section         String
+  name            String
+  capacityHours   Float            @default(8)
+  workType        String?
+  masterPersonId  Int?
+  isActive        Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  sectionRef      ReferenceSection @relation(fields: [section], references: [name])
+  master          Person?          @relation(fields: [masterPersonId], references: [id])
+  shifts          WorkShift[]
+
+  @@unique([section, name])
+  @@index([section])
+  @@index([masterPersonId])
+}
+
+model WorkShift {
+  id           Int                       @id @default(autoincrement())
+  shiftDate    DateTime
+  section      String
+  workCenterId Int?
+  startsAt     DateTime
+  endsAt       DateTime
+  brigade      String?
+  master       String?
+  status       String                    @default("open")
+  closedAt     DateTime?
+  closedBy     String?
+  closeComment String?
+  disputedJson Json?
+  createdAt    DateTime                  @default(now())
+  updatedAt    DateTime                  @updatedAt
+  workCenter   WorkCenter?               @relation(fields: [workCenterId], references: [id])
+  timeTrackings TimeTracking[]
+  productionOperations ProductionUnitOperation[]
+  productionEvents ProductionOperationEvent[]
+
+  @@index([shiftDate])
+  @@index([section, startsAt, endsAt])
+  @@index([status])
+}
+
+model ProductionCalendarDay {
+  id        Int      @id @default(autoincrement())
+  date      DateTime @unique
+  dayType   String   @default("workday")
+  startsAt  DateTime?
+  endsAt    DateTime?
+  comment   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model DeviationReason {
+  code                  String   @id
+  name                  String
+  category              String
+  timeCategory          String
+  affectsWorkerKpi      Boolean  @default(true)
+  requiresSupervisorNote Boolean @default(false)
+  isActive              Boolean  @default(true)
+  sortOrder             Int      @default(100)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([category])
+  @@index([timeCategory])
+  @@index([isActive])
+}
+
+model AuditLog {
+  id          Int      @id @default(autoincrement())
+  entityType  String
+  entityId    String
+  action      String
+  actor       String?
+  beforeJson  Json?
+  afterJson   Json?
+  comment     String?
+  createdAt   DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([action])
+  @@index([createdAt])
+}

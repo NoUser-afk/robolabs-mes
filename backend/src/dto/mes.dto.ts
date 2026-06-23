@@ -1,0 +1,25 @@
+export type OperationActionBody = { personId?: number; comment?: string };
+export type ProductionOperationSelectionBody = { operator?: string; terminalId?: string; clientId?: string; lockToken?: string };
+export type ProductionOperationActionBody = { operator?: string; personName?: string; lockedBy?: string; lockToken?: string; expectedVersion?: number };
+export type BulkProductionUnitOperationBody = {
+  action?: 'start' | 'pause' | 'resume' | 'complete';
+  items?: Array<{ runId?: string; unitId?: string; operationId?: string }>;
+  operator?: string;
+  personName?: string;
+  lockedBy?: string;
+  reasonCode?: string;
+  comment?: string;
+};
+export type LaunchProductionBody = { orderNumber?: string; productId?: string; productCode?: string; productName?: string; quantity?: number; priority?: 'high' | 'normal' | 'low'; priorityRank?: number; comment?: string; operator?: string };
+export type LaunchProductionBatchBody = { items?: Array<{ orderNumber?: string; productId?: string; productCode?: string; productName?: string; quantity?: number }>; priority?: 'high' | 'normal' | 'low'; priorityRank?: number; comment?: string; operator?: string };
+export type CreateProductionRunBody = { orderNumber?: string; productId?: string; productCode?: string; productName?: string; quantity?: number; operator?: string; priority?: 'high' | 'normal' | 'low'; priorityRank?: number };
+export type ReferenceSectionBody = { name?: string; availableHours?: number; isActive?: boolean };
+export type ReferenceOperationBody = { operationCode?: string; name?: string; defaultSection?: string; defaultNormHours?: number; partOrAssembly?: string; isActive?: boolean };
+export type WorkCenterBody = { id?: number; section?: string; name?: string; capacityHours?: number; workType?: string; masterPersonId?: number; isActive?: boolean };
+export type ShiftBody = { shiftDate?: string; section?: string; workCenterId?: number; startsAt?: string; endsAt?: string; brigade?: string; master?: string };
+export type CloseShiftBody = { closedBy?: string; closeComment?: string; disputedJson?: unknown };
+export type CalendarDayBody = { date?: string; dayType?: string; startsAt?: string; endsAt?: string; comment?: string };
+export type DeviationReasonBody = { code?: string; name?: string; category?: string; timeCategory?: string; affectsWorkerKpi?: boolean; requiresSupervisorNote?: boolean; isActive?: boolean; sortOrder?: number };
+export type QualityBody = { personId?: number; checkedQty?: number; acceptedQty?: number; defectQty?: number; defectReason?: string; comment?: string };
+export type PersonBody = { fullName: string; section: string };
+export type SaveNomenclatureProcessBody = Record<string, unknown>;
