@@ -27,6 +27,25 @@ git remote add origin <REMOTE_REPOSITORY_URL>
 git push -u origin main
 ```
 
+Current internal remote on `ttm-mini`:
+
+```powershell
+git remote -v
+# ttm-mini  ttm-mini:/home/admin_ttm/git/robolabs-mes.git
+```
+
+The server also has a non-production checkout prepared at:
+
+```text
+/home/admin_ttm/robolabs-mes-git
+```
+
+The currently running production directory is still:
+
+```text
+/home/admin_ttm/robolabs-mes-demo
+```
+
 Use tags for production releases:
 
 ```powershell
