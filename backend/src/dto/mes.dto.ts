@@ -1,4 +1,5 @@
 export type OperationActionBody = { personId?: number; comment?: string };
+export type CustomerOrderStatusBody = { accessCode?: string };
 export type ProductionOperationSelectionBody = { operator?: string; terminalId?: string; clientId?: string; lockToken?: string };
 export type ProductionOperationActionBody = { operator?: string; personName?: string; lockedBy?: string; lockToken?: string; expectedVersion?: number };
 export type BulkProductionUnitOperationBody = {

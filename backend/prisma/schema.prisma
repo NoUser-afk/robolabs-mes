@@ -31,6 +31,21 @@ model Order {
   events      OperationEvent[]
   timeTrackings TimeTracking[]
   qualityRecords QualityRecord[]
+  customerAccesses CustomerOrderAccess[]
+}
+
+model CustomerOrderAccess {
+  id             Int       @id @default(autoincrement())
+  orderId        Int
+  accessCodeHash String
+  createdBy      String?
+  createdAt      DateTime  @default(now())
+  rotatedAt      DateTime?
+  disabledAt     DateTime?
+  order          Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, disabledAt])
+  @@index([createdAt])
 }
 
 model RouteTemplate {
@@ -291,12 +306,27 @@ model ProductionRun {
   units            ProductionUnit[]
   operations       ProductionUnitOperation[]
   events           ProductionOperationEvent[]
+  customerAccesses CustomerProductionRunAccess[]
 
   @@index([orderNumber])
   @@index([productCode])
   @@index([status])
   @@index([orderId, status])
   @@index([archived, testData, status])
+}
+
+model CustomerProductionRunAccess {
+  id             Int           @id @default(autoincrement())
+  runId          String
+  accessCodeHash String
+  createdBy      String?
+  createdAt      DateTime      @default(now())
+  rotatedAt      DateTime?
+  disabledAt     DateTime?
+  run            ProductionRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId, disabledAt])
+  @@index([createdAt])
 }
 
 model ProductionUnit {

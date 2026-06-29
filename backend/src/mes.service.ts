@@ -7,6 +7,7 @@ import * as XLSX from 'xlsx';
 import productsProcesses from './data/products-processes.json';
 import { AuthUser } from './auth.types';
 import { isBulkGroupAllowedProductionOperation, isGroupCapableEntity } from './bulk-operation.model';
+import { buildCustomerOrderStatusCard, buildCustomerOrderStatusResponse, buildCustomerProductionRunStatusResponse, generateCustomerAccessCode, hashCustomerAccessCode, verifyCustomerAccessCode } from './customer-order-status.model';
 import { LifecycleStatus, ProductionOperationStatus, orderOperationTransition, productionEventTypeFromTransition, productionOperationTransition } from './operation-status.model';
 import { PrismaService } from './prisma.service';
 
@@ -311,6 +312,103 @@ export class MesService {
     if (!order) throw new NotFoundException('Заказ не найден');
     if (!order.operations.length || order.operations.some((op) => op.status !== 'done')) throw new BadRequestException('Заказ можно архивировать только после завершения всех этапов');
     return this.prisma.order.update({ where: { id: orderId }, data: { status: 'archived' } });
+  }
+
+  async generateCustomerOrderAccess(orderId: number, actor?: string) {
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) throw new NotFoundException('Заказ не найден');
+    const scopeOrders = await this.prisma.order.findMany({
+      where: { orderNumber: order.orderNumber, status: { not: 'archived' } },
+      select: { id: true },
+    });
+    const scopeOrderIds = scopeOrders.map((item) => item.id);
+    const accessCode = generateCustomerAccessCode();
+    const now = new Date();
+    const access = await this.prisma.$transaction(async (tx) => {
+      await tx.customerOrderAccess.updateMany({
+        where: { orderId: { in: scopeOrderIds }, disabledAt: null },
+        data: { disabledAt: now, rotatedAt: now },
+      });
+      return tx.customerOrderAccess.create({
+        data: {
+          orderId,
+          accessCodeHash: hashCustomerAccessCode(accessCode),
+          createdBy: actor || null,
+        },
+      });
+    });
+    return {
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      positionsCount: scopeOrderIds.length,
+      accessCode,
+      createdAt: access.createdAt,
+    };
+  }
+
+  async generateCustomerProductionRunAccess(runId: string, actor?: string) {
+    const run = await this.readProductionRun(runId);
+    if (!run || run.archived || run.testData) throw new NotFoundException('Партия не найдена');
+    const accessCode = generateCustomerAccessCode();
+    const now = new Date();
+    const access = await this.prisma.$transaction(async (tx) => {
+      await tx.customerProductionRunAccess.updateMany({
+        where: { runId, disabledAt: null },
+        data: { disabledAt: now, rotatedAt: now },
+      });
+      return tx.customerProductionRunAccess.create({
+        data: {
+          runId,
+          accessCodeHash: hashCustomerAccessCode(accessCode),
+          createdBy: actor || null,
+        },
+      });
+    });
+    return {
+      runId: run.id,
+      orderNumber: run.orderNumber || run.id,
+      productCode: run.productCode,
+      positionsCount: run.units?.length || 1,
+      accessCode,
+      createdAt: access.createdAt,
+    };
+  }
+
+  async customerOrderStatus(body: { accessCode?: string }) {
+    const accessCode = String(body.accessCode || '').trim();
+    if (!accessCode) throw new NotFoundException('Код доступа не найден');
+    const activeAccesses = await this.prisma.customerOrderAccess.findMany({
+      where: { disabledAt: null, order: { status: { not: 'archived' } } },
+      include: { order: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    const access = activeAccesses.find((item) => verifyCustomerAccessCode(accessCode, item.accessCodeHash));
+    if (access) {
+      const orders = await this.prisma.order.findMany({
+        where: { orderNumber: access.order.orderNumber, status: { not: 'archived' } },
+        include: { operations: { orderBy: { sortOrder: 'asc' } } },
+        orderBy: [{ productCode: 'asc' }, { id: 'asc' }],
+      });
+      const activeRuns = this.activeProductionRuns(await this.readProductionRuns()).map((run) => this.enrichProductionRun(run));
+      const generatedAt = new Date();
+      const positions = orders.map((order) => buildCustomerOrderStatusCard({
+        order,
+        runs: activeRuns.filter((run) => (run.orderId && run.orderId === order.id) || (run.orderNumber === order.orderNumber && run.productCode === order.productCode)),
+        generatedAt,
+      }));
+      return buildCustomerOrderStatusResponse({ positions, generatedAt });
+    }
+
+    const runAccesses = await this.prisma.customerProductionRunAccess.findMany({
+      where: { disabledAt: null, run: { archived: false, testData: false } },
+      include: { run: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    const runAccess = runAccesses.find((item) => verifyCustomerAccessCode(accessCode, item.accessCodeHash));
+    if (!runAccess) throw new NotFoundException('Код доступа не найден');
+    const run = await this.readProductionRun(runAccess.runId);
+    if (!run || run.archived || run.testData) throw new NotFoundException('Код доступа не найден');
+    return buildCustomerProductionRunStatusResponse({ run: this.enrichProductionRun(run), generatedAt: new Date() });
   }
 
   async archiveOrders() {
@@ -677,6 +775,58 @@ export class MesService {
       },
     });
     return process;
+  }
+
+  async copyNomenclatureProcess(id: string) {
+    const source = (await this.allProductProcesses()).find((item) => item.id === id || item.productCode === id);
+    if (!source) throw new NotFoundException('Номенклатура не найдена');
+    const usedIds = new Set((await this.allProductProcesses()).map((product) => product.id));
+    const usedProductKeys = new Set((await this.allProductProcesses()).flatMap((product) => this.productMatchKeys(product.productCode)));
+    let copyIndex = 1;
+    let equipment = '';
+    let productCode = '';
+    let processId = '';
+    do {
+      const prefix = copyIndex === 1 ? 'КОПИЯ' : `КОПИЯ ${copyIndex}`;
+      equipment = `${prefix} ${source.equipment}`.trim();
+      productCode = `${prefix} ${source.productCode}`.trim();
+      processId = this.slugify(`${equipment}-${productCode}`);
+      copyIndex += 1;
+    } while (usedIds.has(processId) || this.productMatchKeys(productCode).some((key) => usedProductKeys.has(key)));
+
+    const process = this.normalizeManualProcess({
+      id: processId,
+      equipment,
+      productCode,
+      category: source.category || 'Ручная номенклатура',
+      notes: [`Скопировано из ${source.equipment} (${source.productCode}).`, ...(source.notes || [])],
+      summary: source.summary || {},
+      processSteps: source.processSteps.map((step) => ({ ...step })),
+    });
+    await this.prisma.nomenclatureProcessRecord.create({
+      data: {
+        id: process.id,
+        equipment: process.equipment,
+        productCode: process.productCode,
+        category: process.category,
+        operationsCount: process.processSteps.length,
+        totalNormHours: process.totalNormHours,
+        confidence: process.confidence,
+        data: process as unknown as Prisma.InputJsonValue,
+      },
+    });
+    return process;
+  }
+
+  async deleteNomenclatureProcess(id: string) {
+    const record = await this.prisma.nomenclatureProcessRecord.findUnique({ where: { id } });
+    if (!record) {
+      const imported = (productsProcesses.products as ProductProcess[]).some((product) => product.id === id || product.productCode === id);
+      if (imported) throw new BadRequestException('Импортированный техпроцесс удалить нельзя. Скопируйте его и удаляйте только ручную копию.');
+      throw new NotFoundException('Ручной техпроцесс не найден');
+    }
+    await this.prisma.nomenclatureProcessRecord.delete({ where: { id } });
+    return { ok: true, id };
   }
 
   async productionRuns() {

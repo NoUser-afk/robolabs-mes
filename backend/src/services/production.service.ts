@@ -13,6 +13,7 @@ export class ProductionService {
   launchProductionBatch(body: LaunchProductionBatchBody) { return this.mes.launchProductionBatch(body); }
   createProductionRun(body: CreateProductionRunBody) { return this.mes.createProductionRun(body); }
   productionRun(id: string) { return this.mes.productionRun(id); }
+  generateCustomerProductionRunAccess(id: string, actor?: string) { return this.mes.generateCustomerProductionRunAccess(id, actor); }
   startProductionRun(id: string) { return this.mes.startProductionRun(id); }
   deleteProductionRun(id: string) { return this.mes.deleteProductionRun(id); }
   releaseProductionUnitDispatch(id: string, unitId: string, body: ProductionOperationActionBody) { return this.mes.releaseProductionUnitDispatch(id, unitId, body); }

@@ -8,6 +8,7 @@ import type {
   BulkProductionUnitOperationBody,
   CalendarDayBody,
   CloseShiftBody,
+  CustomerOrderStatusBody,
   CreateProductionRunBody,
   DeviationReasonBody,
   LaunchProductionBatchBody,
@@ -265,6 +266,18 @@ export class AppController {
     return this.dashboard.archiveOrder(id);
   }
 
+  @Roles('dispatcher', 'admin')
+  @Post('orders/:id/customer-access')
+  generateCustomerOrderAccess(@Req() req: AuthRequest, @Param('id', ParseIntPipe) id: number) {
+    return this.dashboard.generateCustomerOrderAccess(id, req.user?.displayName || req.user?.login);
+  }
+
+  @Public()
+  @Post('customer/order-status')
+  customerOrderStatus(@Body() body: CustomerOrderStatusBody) {
+    return this.dashboard.customerOrderStatus(body);
+  }
+
   @Get('archive/orders')
   archiveOrders() {
     return this.dashboard.archiveOrders();
@@ -401,6 +414,18 @@ export class AppController {
     return this.nomenclatureService.saveNomenclatureProcess(body);
   }
 
+  @Roles('technologist', 'dispatcher', 'admin')
+  @Post('nomenclature/:id/process/copy')
+  copyNomenclatureProcess(@Param('id') id: string) {
+    return this.nomenclatureService.copyNomenclatureProcess(id);
+  }
+
+  @Roles('technologist', 'dispatcher', 'admin')
+  @Delete('nomenclature/:id/process')
+  deleteNomenclatureProcess(@Param('id') id: string) {
+    return this.nomenclatureService.deleteNomenclatureProcess(id);
+  }
+
   @Get('production/runs')
   productionRuns() {
     return this.production.productionRuns();
@@ -437,6 +462,12 @@ export class AppController {
   @Get('production/runs/:id')
   productionRun(@Param('id') id: string) {
     return this.production.productionRun(id);
+  }
+
+  @Roles('dispatcher', 'admin')
+  @Post('production/runs/:id/customer-access')
+  generateCustomerProductionRunAccess(@Req() req: AuthRequest, @Param('id') id: string) {
+    return this.production.generateCustomerProductionRunAccess(id, req.user?.displayName || req.user?.login);
   }
 
   @Get('production/runs/:id/units/:unitId/graph')

@@ -12,4 +12,6 @@ export class NomenclatureService {
   nomenclatureCategories() { return this.mes.nomenclatureCategories(); }
   nomenclatureProcess(id: string) { return this.mes.nomenclatureProcess(id); }
   saveNomenclatureProcess(body: SaveNomenclatureProcessBody) { return this.mes.saveNomenclatureProcess(body); }
+  copyNomenclatureProcess(id: string) { return this.mes.copyNomenclatureProcess(id); }
+  deleteNomenclatureProcess(id: string) { return this.mes.deleteNomenclatureProcess(id); }
 }
