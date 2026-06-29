@@ -88,6 +88,12 @@ type ProductionRun = {
   testData?: boolean;
   orderId?: number | null;
   orderNumber?: string | null;
+  orderYear?: number | null;
+  orderScopeKey?: string | null;
+  orderBatchNo?: number | null;
+  orderUnitFrom?: number | null;
+  orderUnitTo?: number | null;
+  orderBatchCode?: string | null;
   batchNumber?: string | null;
   batchName?: string | null;
   batchCreatedBy?: string | null;
@@ -111,6 +117,12 @@ type ProductionRun = {
   operations: ProductionOperation[];
   units?: ProductionUnit[];
   normHours: number;
+};
+type ProductionRunOrderMeta = {
+  id: number | null;
+  orderNumber: string;
+  createdAt?: Date | string | null;
+  dueDate?: Date | string | null;
 };
 type ProductProcess = {
   id: string;
@@ -867,7 +879,12 @@ export class MesService {
     ]);
     const now = new Date();
     const rows = orders.map((order) => {
-      const relatedRuns = this.activeProductionRuns(runs).filter((run) => run.orderNumber === order.orderNumber && run.productCode === order.productCode);
+      const relatedRuns = this.activeProductionRuns(runs).filter((run) => this.isSameProductionOrderRun(run, order.productCode, {
+        id: order.id,
+        orderNumber: order.orderNumber,
+        createdAt: order.createdAt,
+        dueDate: order.dueDate,
+      }));
       const launched = relatedRuns.reduce((sum, run) => sum + (run.launchedQuantity || run.units?.length || run.quantity || 0), 0);
       const ready = relatedRuns.reduce((sum, run) => sum + (run.units?.filter((unit) => unit.status === 'done').length || (run.status === 'done' ? run.quantity : 0)), 0);
       const stages = this.planStages(order.operations, relatedRuns);
@@ -1007,9 +1024,11 @@ export class MesService {
     const product = await this.findProductProcessOrThrow([body.productId, body.productCode, body.productName], 'Выберите номенклатуру для запуска производства');
     const quantity = Math.max(1, Number(body.quantity || 1));
     const orderNumber = this.normalizeProductionRunOrderNumber(body.orderNumber);
-    const run = this.buildProductionRun(product, quantity, body, orderNumber ? { id: null, orderNumber } : null);
     return this.withSerializableRetry(async (tx) => {
       const runs = await this.readProductionRuns(tx);
+      const orderMeta = orderNumber ? { id: null, orderNumber } : null;
+      const run = this.buildProductionRun(product, quantity, body, orderMeta);
+      this.assignOrderBatchIdentity(run, runs, product.productCode, orderMeta);
       runs.push(run);
       await this.writeProductionRuns(runs, tx);
       return this.enrichProductionRun(run);
@@ -1024,10 +1043,14 @@ export class MesService {
     const product = await this.findProductProcessOrThrow(identifiers, 'Укажите заказ или номенклатуру для запуска');
     const runs = await this.readProductionRuns();
     if (order) {
-      const alreadyLaunched = runs.filter((run) => run.orderNumber === order.orderNumber && run.productCode === product.productCode).reduce((sum, run) => sum + (run.launchedQuantity || run.units?.length || run.quantity || 0), 0);
+      const alreadyLaunched = this.activeProductionRuns(runs)
+        .filter((run) => this.isSameProductionOrderRun(run, product.productCode, { id: order.id, orderNumber: order.orderNumber, createdAt: order.createdAt, dueDate: order.dueDate }))
+        .reduce((sum, run) => sum + (run.launchedQuantity || run.units?.length || run.quantity || 0), 0);
       if (alreadyLaunched + quantity > order.quantity) throw new BadRequestException(`Нельзя запустить больше остатка по заказу. Доступно: ${Math.max(0, order.quantity - alreadyLaunched)}`);
     }
-    const run = this.buildProductionRun(product, quantity, body, order ? { id: order.id, orderNumber: order.orderNumber } : requestedOrderNumber ? { id: null, orderNumber: requestedOrderNumber } : null);
+    const orderMeta = order ? { id: order.id, orderNumber: order.orderNumber, createdAt: order.createdAt, dueDate: order.dueDate } : requestedOrderNumber ? { id: null, orderNumber: requestedOrderNumber } : null;
+    const run = this.buildProductionRun(product, quantity, body, orderMeta);
+    this.assignOrderBatchIdentity(run, runs, product.productCode, orderMeta);
     runs.push(run);
     await this.writeProductionRuns(runs);
     return this.enrichProductionRun(run);
@@ -1045,14 +1068,23 @@ export class MesService {
       const order = requestedOrderNumber ? await this.prisma.order.findUnique({ where: { orderNumber: requestedOrderNumber } }) : null;
       const identifiers = [item.productId, item.productCode, item.productName, order?.productCode, order?.productName, order?.orderNumber];
       const product = await this.findProductProcessOrThrow(identifiers, 'Укажите заказ или номенклатуру для запуска партии');
+      const orderMeta = order ? { id: order.id, orderNumber: order.orderNumber, createdAt: order.createdAt, dueDate: order.dueDate } : requestedOrderNumber ? { id: null, orderNumber: requestedOrderNumber } : null;
       if (order) {
-        const alreadyLaunched = runs.filter((run) => run.orderNumber === order.orderNumber && run.productCode === product.productCode).reduce((sum, run) => sum + (run.launchedQuantity || run.units?.length || run.quantity || 0), 0);
-        const createdForOrder = created.filter((run) => run.orderNumber === order.orderNumber && run.productCode === product.productCode).reduce((sum, run) => sum + (run.launchedQuantity || run.quantity || 0), 0);
+        const alreadyLaunched = this.activeProductionRuns(runs)
+          .filter((run) => this.isSameProductionOrderRun(run, product.productCode, orderMeta))
+          .reduce((sum, run) => sum + (run.launchedQuantity || run.units?.length || run.quantity || 0), 0);
+        const createdForOrder = created
+          .filter((run) => this.isSameProductionOrderRun(run, product.productCode, orderMeta))
+          .reduce((sum, run) => sum + (run.launchedQuantity || run.quantity || 0), 0);
         if (alreadyLaunched + createdForOrder + quantity > order.quantity) throw new BadRequestException(`Нельзя запустить больше остатка по заказу ${order.orderNumber}. Доступно: ${Math.max(0, order.quantity - alreadyLaunched - createdForOrder)}`);
       }
-      const run = this.buildProductionRun(product, quantity, body, order ? { id: order.id, orderNumber: order.orderNumber } : requestedOrderNumber ? { id: null, orderNumber: requestedOrderNumber } : null);
-      run.batchNumber = batchNumber;
-      run.batchName = `Партия ${batchNumber}`;
+      const run = this.buildProductionRun(product, quantity, body, orderMeta);
+      if (orderMeta) {
+        this.assignOrderBatchIdentity(run, runs, product.productCode, orderMeta, created);
+      } else {
+        run.batchNumber = batchNumber;
+        run.batchName = `Партия ${batchNumber}`;
+      }
       run.batchCreatedBy = body.operator?.trim() || null;
       run.batchSource = 'multi-selection';
       created.push(run);
@@ -2746,7 +2778,59 @@ export class MesService {
     throw new ConflictException('Production run update failed');
   }
 
-  private buildProductionRun(product: any, quantity: number, body: { operator?: string; priority?: ProductionPriority; priorityRank?: number; comment?: string }, order: { id: number | null; orderNumber: string } | null): ProductionRun {
+  private productionOrderYear(order: ProductionRunOrderMeta | null | undefined, fallbackIso?: string | null) {
+    const value = order?.createdAt || fallbackIso || new Date().toISOString();
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isFinite(date.getTime())) return date.getFullYear();
+    return new Date().getFullYear();
+  }
+
+  private productionRunOrderYear(run: ProductionRun) {
+    if (run.orderYear) return run.orderYear;
+    const batchYear = String(run.batchNumber || '').match(/-(\d{4})-P\d+$/i)?.[1];
+    if (batchYear) return Number(batchYear);
+    return this.productionOrderYear(null, run.createdAt);
+  }
+
+  private productionOrderScopeKey(productCode: string, order: ProductionRunOrderMeta, year: number) {
+    const orderKey = order.id ? `id:${order.id}` : `number:${order.orderNumber}:${year}`;
+    return `${orderKey}:product:${productCode}`;
+  }
+
+  private isSameProductionOrderRun(run: ProductionRun, productCode: string, order: ProductionRunOrderMeta | null) {
+    if (!order || !run.orderNumber || run.productCode !== productCode) return false;
+    if (order.id && run.orderId) return run.orderId === order.id;
+    return run.orderNumber === order.orderNumber && this.productionRunOrderYear(run) === this.productionOrderYear(order, run.createdAt);
+  }
+
+  private productionRunQuantity(run: ProductionRun) {
+    return run.launchedQuantity || run.units?.length || run.quantity || 0;
+  }
+
+  private productionRunOrderBatchNo(run: ProductionRun) {
+    if (run.orderBatchNo) return run.orderBatchNo;
+    const parsed = String(run.orderBatchCode || run.batchNumber || '').match(/-P(\d+)$/i)?.[1];
+    return parsed ? Number(parsed) : 0;
+  }
+
+  private assignOrderBatchIdentity(run: ProductionRun, existingRuns: ProductionRun[], productCode: string, order: ProductionRunOrderMeta | null, pendingRuns: ProductionRun[] = []) {
+    if (!order?.orderNumber) return;
+    const year = this.productionOrderYear(order, run.createdAt);
+    const related = [...this.activeProductionRuns(existingRuns), ...pendingRuns].filter((item) => this.isSameProductionOrderRun(item, productCode, order));
+    const quantityBefore = related.reduce((sum, item) => sum + this.productionRunQuantity(item), 0);
+    const orderBatchNo = Math.max(0, ...related.map((item) => this.productionRunOrderBatchNo(item))) + 1;
+    const orderBatchCode = `${order.orderNumber}-${year}-P${String(orderBatchNo).padStart(2, '0')}`;
+    run.orderYear = year;
+    run.orderScopeKey = this.productionOrderScopeKey(productCode, order, year);
+    run.orderBatchNo = orderBatchNo;
+    run.orderUnitFrom = quantityBefore + 1;
+    run.orderUnitTo = quantityBefore + this.productionRunQuantity(run);
+    run.orderBatchCode = orderBatchCode;
+    run.batchNumber = orderBatchCode;
+    run.batchName = `${orderBatchCode} · ед. ${run.orderUnitFrom}-${run.orderUnitTo}`;
+  }
+
+  private buildProductionRun(product: any, quantity: number, body: { operator?: string; priority?: ProductionPriority; priorityRank?: number; comment?: string }, order: ProductionRunOrderMeta | null): ProductionRun {
     const priority = this.normalizeProductionPriority(body.priority);
     const now = new Date().toISOString();
     const runId = `RUN-${Date.now()}-${randomUUID().slice(0, 8).toUpperCase()}`;

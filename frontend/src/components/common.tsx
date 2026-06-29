@@ -58,8 +58,8 @@ export function displayOrderNumber(value?: string | null) {
 }
 
 export function displayRunTitle(run: Pick<ProductionRun, 'orderNumber' | 'batchNumber' | 'batchName' | 'createdAt'>) {
-  if (run.orderNumber) return run.orderNumber;
   if (run.batchNumber && !isTechnicalRunId(run.batchNumber)) return run.batchNumber;
+  if (run.orderNumber) return run.orderNumber;
   if (run.batchName) return run.batchName;
   return run.createdAt ? `Партия от ${date(run.createdAt)}` : 'ручной запуск';
 }
