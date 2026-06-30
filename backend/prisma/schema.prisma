@@ -289,6 +289,12 @@ model ProductionRunRecord {
   id          String   @id
   orderId     Int?
   orderNumber String?  @db.VarChar(20)
+  orderYear   Int?
+  orderScopeKey String?
+  orderBatchNo Int?
+  orderUnitFrom Int?
+  orderUnitTo Int?
+  orderBatchCode String?
   productId   String?
   productCode String?
   productName String?
@@ -305,6 +311,8 @@ model ProductionRunRecord {
   updatedAt   DateTime @updatedAt
 
   @@index([orderNumber])
+  @@index([orderScopeKey])
+  @@index([orderBatchCode])
   @@index([productCode])
   @@index([processVersionId])
   @@index([status])
@@ -315,6 +323,12 @@ model ProductionRun {
   legacyRecordId   String?
   orderId          Int?
   orderNumber      String?          @db.VarChar(20)
+  orderYear        Int?
+  orderScopeKey    String?
+  orderBatchNo     Int?
+  orderUnitFrom    Int?
+  orderUnitTo      Int?
+  orderBatchCode   String?
   batchNumber      String?
   batchName        String?
   batchCreatedBy   String?
@@ -346,6 +360,8 @@ model ProductionRun {
   customerAccesses CustomerProductionRunAccess[]
 
   @@index([orderNumber])
+  @@index([orderScopeKey])
+  @@index([orderBatchCode])
   @@index([productCode])
   @@index([processVersionId])
   @@index([status])

@@ -57,11 +57,25 @@ export function displayOrderNumber(value?: string | null) {
   return value && !isTechnicalRunId(value) ? value : 'номер не указан';
 }
 
-export function displayRunTitle(run: Pick<ProductionRun, 'orderNumber' | 'batchNumber' | 'batchName' | 'createdAt'>) {
-  if (run.batchNumber && !isTechnicalRunId(run.batchNumber)) return run.batchNumber;
+function simpleBatchCode(value?: string | null, orderNumber?: string | null, orderBatchNo?: number | null) {
+  if (orderNumber && orderBatchNo) return `${orderNumber}-${orderBatchNo}`;
+  if (!value) return '';
+  const legacy = value.match(/^(.+)-\d{4}-P0*(\d+)$/i);
+  return legacy ? `${legacy[1]}-${Number(legacy[2])}` : value;
+}
+
+export function displayRunTitle(run: Pick<ProductionRun, 'orderNumber' | 'orderBatchCode' | 'orderBatchNo' | 'batchNumber' | 'batchName' | 'createdAt'>) {
+  const batchCode = simpleBatchCode(run.orderBatchCode || run.batchNumber, run.orderNumber, run.orderBatchNo);
+  if (batchCode && !isTechnicalRunId(batchCode)) return batchCode;
   if (run.orderNumber) return run.orderNumber;
   if (run.batchName) return run.batchName;
   return run.createdAt ? `Партия от ${date(run.createdAt)}` : 'ручной запуск';
+}
+
+export function displayOperationBatch(op?: Pick<Operation, 'sourceType' | 'orderBatchCode' | 'orderNumber' | 'displayId'> | null) {
+  if (!op) return 'номер не указан';
+  if (op.sourceType === 'production-run') return simpleBatchCode(op.orderBatchCode || op.displayId, op.orderNumber) || displayOrderNumber(op.orderNumber || op.displayId);
+  return displayOrderNumber(op.orderNumber || op.displayId);
 }
 
 export function displayOperationTitle(op?: Pick<Operation, 'operation' | 'name' | 'operationCode' | 'operationId'> | Pick<ProductionOperation, 'name' | 'operationId'> | null) {

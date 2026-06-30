@@ -2084,6 +2084,12 @@ export class MesService {
       testData: Boolean(record.testData),
       orderId: record.orderId ?? null,
       orderNumber: record.orderNumber ?? null,
+      orderYear: record.orderYear ?? null,
+      orderScopeKey: record.orderScopeKey ?? null,
+      orderBatchNo: record.orderBatchNo ?? null,
+      orderUnitFrom: record.orderUnitFrom ?? null,
+      orderUnitTo: record.orderUnitTo ?? null,
+      orderBatchCode: this.simpleProductionRunBatchCode(record.orderBatchCode ?? record.batchNumber ?? null, record.orderNumber ?? null, record.orderBatchNo ?? null),
       batchNumber: record.batchNumber ?? record.id,
       batchName: record.batchName ?? null,
       batchCreatedBy: record.batchCreatedBy ?? record.operator ?? null,
@@ -2202,6 +2208,12 @@ export class MesService {
       legacyRecordId: run.id,
       orderId: run.orderId || null,
       orderNumber: run.orderNumber || null,
+      orderYear: run.orderYear ?? null,
+      orderScopeKey: run.orderScopeKey || null,
+      orderBatchNo: run.orderBatchNo ?? null,
+      orderUnitFrom: run.orderUnitFrom ?? null,
+      orderUnitTo: run.orderUnitTo ?? null,
+      orderBatchCode: this.simpleProductionRunBatchCode(run.orderBatchCode || run.batchNumber || null, run.orderNumber || null, run.orderBatchNo ?? null),
       batchNumber: run.batchNumber || run.id,
       batchName: run.batchName || null,
       batchCreatedBy: run.batchCreatedBy || run.operator || null,
@@ -2287,6 +2299,12 @@ export class MesService {
       data: Prisma.JsonValue;
       orderId?: number | null;
       orderNumber?: string | null;
+      orderYear?: number | null;
+      orderScopeKey?: string | null;
+      orderBatchNo?: number | null;
+      orderUnitFrom?: number | null;
+      orderUnitTo?: number | null;
+      orderBatchCode?: string | null;
       productId?: string | null;
       productCode?: string | null;
       productName?: string | null;
@@ -2304,6 +2322,12 @@ export class MesService {
         ...run,
         orderId: record.orderId ?? run.orderId ?? null,
         orderNumber: record.orderNumber ?? run.orderNumber ?? null,
+        orderYear: record.orderYear ?? run.orderYear ?? null,
+        orderScopeKey: record.orderScopeKey ?? run.orderScopeKey ?? null,
+        orderBatchNo: record.orderBatchNo ?? run.orderBatchNo ?? null,
+        orderUnitFrom: record.orderUnitFrom ?? run.orderUnitFrom ?? null,
+        orderUnitTo: record.orderUnitTo ?? run.orderUnitTo ?? null,
+        orderBatchCode: this.simpleProductionRunBatchCode(record.orderBatchCode ?? run.orderBatchCode ?? run.batchNumber ?? null, record.orderNumber ?? run.orderNumber ?? null, record.orderBatchNo ?? run.orderBatchNo ?? null),
         batchNumber: run.batchNumber || run.id,
         batchName: run.batchName || `${record.productName || run.productName} · ${record.quantity ?? run.quantity} шт.`,
         batchCreatedBy: run.batchCreatedBy || record.operator || run.operator || null,
@@ -2327,6 +2351,12 @@ export class MesService {
         id: run.id,
         orderId: run.orderId || null,
         orderNumber: run.orderNumber || null,
+        orderYear: run.orderYear ?? null,
+        orderScopeKey: run.orderScopeKey || null,
+        orderBatchNo: run.orderBatchNo ?? null,
+        orderUnitFrom: run.orderUnitFrom ?? null,
+        orderUnitTo: run.orderUnitTo ?? null,
+        orderBatchCode: this.simpleProductionRunBatchCode(run.orderBatchCode || run.batchNumber || null, run.orderNumber || null, run.orderBatchNo ?? null),
         productId: run.productId,
         productCode: run.productCode,
         productName: run.productName,
@@ -3280,8 +3310,26 @@ export class MesService {
 
   private productionRunOrderBatchNo(run: ProductionRun) {
     if (run.orderBatchNo) return run.orderBatchNo;
-    const parsed = String(run.orderBatchCode || run.batchNumber || '').match(/-P(\d+)$/i)?.[1];
+    const source = String(run.orderBatchCode || run.batchNumber || '').trim();
+    const legacy = source.match(/-P(\d+)$/i)?.[1];
+    if (legacy) return Number(legacy);
+    const orderNumber = String(run.orderNumber || '').trim();
+    const simple = orderNumber && source.startsWith(`${orderNumber}-`) ? source.slice(orderNumber.length + 1).match(/^(\d+)$/)?.[1] : null;
+    const parsed = simple || source.match(/^(\d+)$/)?.[1];
     return parsed ? Number(parsed) : 0;
+  }
+
+  private simpleProductionRunBatchCode(value?: string | null, orderNumber?: string | null, orderBatchNo?: number | null) {
+    if (orderNumber && orderBatchNo) return `${orderNumber}-${orderBatchNo}`;
+    const source = String(value || '').trim();
+    if (!source) return orderNumber || '';
+    const legacy = source.match(/^(.+)-\d{4}-P0*(\d+)$/i);
+    if (legacy) return `${legacy[1]}-${Number(legacy[2])}`;
+    return source;
+  }
+
+  private productionRunDisplayBatchCode(run: ProductionRun) {
+    return this.simpleProductionRunBatchCode(run.orderBatchCode || run.batchNumber || null, run.orderNumber || null, this.productionRunOrderBatchNo(run)) || run.orderNumber || run.batchNumber || run.id;
   }
 
   private assignOrderBatchIdentity(run: ProductionRun, existingRuns: ProductionRun[], productCode: string, order: ProductionRunOrderMeta | null, pendingRuns: ProductionRun[] = []) {
@@ -3290,7 +3338,7 @@ export class MesService {
     const related = [...this.activeProductionRuns(existingRuns), ...pendingRuns].filter((item) => this.isSameProductionOrderRun(item, productCode, order));
     const quantityBefore = related.reduce((sum, item) => sum + this.productionRunQuantity(item), 0);
     const orderBatchNo = Math.max(0, ...related.map((item) => this.productionRunOrderBatchNo(item))) + 1;
-    const orderBatchCode = `${order.orderNumber}-${year}-P${String(orderBatchNo).padStart(2, '0')}`;
+    const orderBatchCode = `${order.orderNumber}-${orderBatchNo}`;
     run.orderYear = year;
     run.orderScopeKey = this.productionOrderScopeKey(productCode, order, year);
     run.orderBatchNo = orderBatchNo;
@@ -3544,6 +3592,7 @@ export class MesService {
       id: run.id,
       displayId: run.id,
       orderNumber: run.orderNumber || run.id,
+      orderBatchCode: this.productionRunDisplayBatchCode(run),
       productCode: run.productCode,
       productName: run.productName,
       code: run.productCode,
@@ -3587,6 +3636,7 @@ export class MesService {
       id: op.id,
       displayId: run.id,
       orderNumber: run.orderNumber || run.id,
+      orderBatchCode: this.productionRunDisplayBatchCode(run),
       isWithoutOrder: !run.orderNumber,
       productName: run.productName,
       productCode: run.productCode,
