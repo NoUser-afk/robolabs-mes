@@ -54,7 +54,7 @@ SELECT
   "operationsCount",
   "totalNormHours",
   "confidence",
-  'Начальная версия из существующего техпроцесса',
+  'Initial version from existing tech process',
   NULL,
   NULL,
   "updatedAt",
