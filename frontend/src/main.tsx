@@ -21,6 +21,8 @@ import type {
   DispatchDashboardData,
   DispatchOrder,
   NomenclatureItem,
+  NomenclatureProcessVersion,
+  NomenclatureProcessVersions,
   Operation,
   OperationControlBlock,
   OperationStatus,
@@ -107,6 +109,7 @@ function App() {
   const entryIntroTimer = useRef<number | null>(null);
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [selectedProductionRunId, setSelectedProductionRunId] = useState('');
+  const [selectedNomenclatureId, setSelectedNomenclatureId] = useState('');
   const [orders, setOrders] = useState<Order[]>([]);
   const [archiveOrders, setArchiveOrders] = useState<Order[]>([]);
   const [archiveProductionRuns, setArchiveProductionRuns] = useState<ProductionRun[]>([]);
@@ -233,7 +236,9 @@ function App() {
       {tab === 'process-graph' && <ProcessGraphView />}
       {tab === 'director' && canOpenDirector && <RoleBanner role="Директор" note="Готовность, загрузка участков и производственная динамика" />}
       {tab === 'director' && canOpenDirector && <DirectorDashboard fallback={{ summary, loads: sectionLoad, orders }} />}
-      {tab === 'nomenclature' && <NomenclatureProcesses user={currentUser} />}
+      {tab === 'nomenclature' && <NomenclatureProcesses user={currentUser} onOpen={(id)=>{ setSelectedNomenclatureId(id); openTab('nomenclature-card'); }} />}
+      {tab === 'nomenclature-card' && !selectedNomenclatureId && <NomenclatureProcesses user={currentUser} onOpen={(id)=>{ setSelectedNomenclatureId(id); openTab('nomenclature-card'); }} />}
+      {tab === 'nomenclature-card' && selectedNomenclatureId && <NomenclatureProcessCardScreen key={selectedNomenclatureId} id={selectedNomenclatureId} user={currentUser} onBack={()=>openTab('nomenclature')} onOpen={setSelectedNomenclatureId} />}
       {tab === 'reference-sections' && <ReferenceSections />}
       {tab === 'reference-operations' && <ReferenceOperations />}
       {tab === 'shifts-kpi' && <ShiftsKpi sections={sections} people={people} />}
@@ -1363,23 +1368,88 @@ function newNomenclatureDraft(): ProductProcess {
   };
 }
 
-function NomenclatureProcesses({ user }: { user: AuthUser }) {
+function NomenclatureProcesses({ user, onOpen }: { user: AuthUser; onOpen: (id: string) => void }) {
   const [items, setItems] = useState<NomenclatureItem[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [category, setCategory] = useState('');
-  const [selectedId, setSelectedId] = useState('');
-  const [view, setView] = useState<'card' | 'route' | 'builder'>('card');
+  const [query, setQuery] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const canEdit = user.role === 'technologist' || user.role === 'dispatcher' || user.role === 'admin';
+  const createNew = () => { setError(''); onOpen('__new__'); };
+  useEffect(() => { let ignore = false; setLoading(true); getJson<{ products: NomenclatureItem[]; categories: string[] }>(`${API}/nomenclature${category ? `?category=${encodeURIComponent(category)}` : ''}`).then(json => { if (ignore) return; setItems(json.products); setCategories(json.categories); }).catch(e => setError(e.message)).finally(() => !ignore && setLoading(false)); return () => { ignore = true; }; }, [category]);
+  const normalizedQuery = query.trim().toLowerCase();
+  const filteredItems = normalizedQuery ? items.filter(item => `${item.productCode} ${item.equipment} ${item.category}`.toLowerCase().includes(normalizedQuery)) : items;
+  return <>
+    <PageTitle title="Номенклатура" subtitle="Карточка номенклатуры из НСИ и техпроцесс изготовления. Пока только чтение." />
+    {error && <div className="alert">{error}</div>}{loading && <div className="loading">Загрузка номенклатуры...</div>}
+    <section className="card nomenclature-list-card"><div className="filters nomenclature-filters"><select name="nomenclature-category" aria-label="Категория номенклатуры" value={category} onChange={e=>setCategory(e.target.value)}><option value="">Все категории</option>{categories.map(c=><option key={c}>{c}</option>)}</select><input name="nomenclature-search" aria-label="Поиск номенклатуры" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Поиск по коду или наименованию" />{canEdit && <button onClick={createNew}>{'\u041d\u043e\u0432\u0430\u044f \u043d\u043e\u043c\u0435\u043d\u043a\u043b\u0430\u0442\u0443\u0440\u0430'}</button>}</div><NomenclatureProcessTable items={filteredItems} selectedId="" onSelect={onOpen} /></section>
+  </>;
+}
+
+function versionStatusLabel(status?: string | null) {
+  return ({ active: 'активная', draft: 'черновик', archived: 'архив' } as Record<string, string>)[status || ''] || status || '—';
+}
+
+function processVersionLabel(run: Pick<ProductionRun, 'processVersionNo'>) {
+  return run.processVersionNo ? `v${run.processVersionNo}` : 'не зафиксирована';
+}
+
+function NomenclatureProcessCardScreen({ id, user, onBack, onOpen }: { id: string; user: AuthUser; onBack: () => void; onOpen: (id: string) => void }) {
   const [process, setProcess] = useState<ProductProcess | null>(null);
+  const [previewProcess, setPreviewProcess] = useState<ProductProcess | null>(null);
+  const [editingVersionId, setEditingVersionId] = useState<string | null>(null);
+  const [versions, setVersions] = useState<NomenclatureProcessVersions | null>(null);
   const [referenceData, setReferenceData] = useState<ReferenceData>({ sections: [], operations: [] });
+  const [view, setView] = useState<'card' | 'route' | 'versions' | 'builder'>('card');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [actionBusy, setActionBusy] = useState(false);
-  const [reloadKey, setReloadKey] = useState(0);
   const canEdit = user.role === 'technologist' || user.role === 'dispatcher' || user.role === 'admin';
-  const createNew = () => { setSelectedId('__new__'); setProcess(newNomenclatureDraft()); setView('builder'); setError(''); };
-  useEffect(() => { let ignore = false; setLoading(true); getJson<{ products: NomenclatureItem[]; categories: string[] }>(`${API}/nomenclature${category ? `?category=${encodeURIComponent(category)}` : ''}`).then(json => { if (ignore) return; setItems(json.products); setCategories(json.categories); const nextId = json.products.some(p => p.id === selectedId) ? selectedId : json.products[0]?.id || ''; setSelectedId(nextId); }).catch(e => setError(e.message)).finally(() => !ignore && setLoading(false)); return () => { ignore = true; }; }, [category, reloadKey]);
-  useEffect(() => { let ignore = false; getJson<ReferenceData>(`${API}/reference-data`).then(json => { if (!ignore) setReferenceData(json); }).catch(e => setError(e.message)); return () => { ignore = true; }; }, []);
-  useEffect(() => { if (!selectedId) { setProcess(null); return; } if (selectedId === '__new__') return; let ignore = false; setError(''); getJson<ProductProcess>(`${API}/nomenclature/${encodeURIComponent(selectedId)}/process`).then(json => { if (!ignore) setProcess(json); }).catch(e => setError(e.message)); return () => { ignore = true; }; }, [selectedId]);
+  const displayProcess = previewProcess || process;
+  const versionEditMode = Boolean(editingVersionId);
+  const previewMode = Boolean(previewProcess) && !versionEditMode;
+  const activeEditableVersionId = process?.sourceType === 'manual' ? versions?.activeVersionId || process.activeVersionId || process.versionId || null : null;
+  const builderVersionId = id === '__new__' ? null : editingVersionId || activeEditableVersionId;
+  const builderVersionEndpoint = id === '__new__'
+    ? undefined
+    : builderVersionId
+      ? `${API}/nomenclature/${encodeURIComponent(displayProcess?.id || id)}/versions/${encodeURIComponent(builderVersionId)}`
+      : `${API}/nomenclature/${encodeURIComponent(displayProcess?.id || id)}/versions`;
+
+  async function loadCard(nextView?: typeof view) {
+    setLoading(true); setError('');
+    try {
+      if (id === '__new__') {
+        const [refs] = await Promise.all([getJson<ReferenceData>(`${API}/reference-data`)]);
+        setReferenceData(refs);
+        setProcess(newNomenclatureDraft());
+        setVersions(null);
+        setPreviewProcess(null);
+        setEditingVersionId(null);
+        setView('builder');
+        return;
+      }
+      const [processJson, versionsJson, refs] = await Promise.all([
+        getJson<ProductProcess>(`${API}/nomenclature/${encodeURIComponent(id)}/process`),
+        getJson<NomenclatureProcessVersions>(`${API}/nomenclature/${encodeURIComponent(id)}/versions`),
+        getJson<ReferenceData>(`${API}/reference-data`),
+      ]);
+      setProcess(processJson);
+      setVersions(versionsJson);
+      setReferenceData(refs);
+      setPreviewProcess(null);
+      setEditingVersionId(null);
+      if (nextView) setView(nextView);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Не удалось загрузить карточку номенклатуры');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { loadCard(); }, [id]);
+
   async function copySelectedProcess() {
     if (!process || actionBusy || !window.confirm(`Создать копию техпроцесса "${process.equipment}" с префиксом КОПИЯ?`)) return;
     setActionBusy(true); setError('');
@@ -1387,68 +1457,154 @@ function NomenclatureProcesses({ user }: { user: AuthUser }) {
       const res = await fetch(`${API}/nomenclature/${encodeURIComponent(process.id)}/process/copy`, { method: 'POST' });
       if (!res.ok) throw new Error(await apiErrorMessage(res, 'Не удалось скопировать техпроцесс'));
       const saved = await res.json() as ProductProcess;
+      onOpen(saved.id);
       setProcess(saved);
-      setSelectedId(saved.id);
-      setItems(prev => [{ id: saved.id, equipment: saved.equipment, productCode: saved.productCode, category: saved.category, operationsCount: saved.processSteps.length, totalNormHours: saved.totalNormHours, confidence: saved.confidence, notes: saved.notes, sourceType: saved.sourceType }, ...prev.filter(item => item.id !== saved.id)]);
-      setCategories(prev => Array.from(new Set([...prev, saved.category])).sort());
+      setPreviewProcess(null);
+      setEditingVersionId(null);
       setView('builder');
-      setReloadKey(key => key + 1);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Не удалось скопировать техпроцесс');
     } finally {
       setActionBusy(false);
     }
   }
+
   async function deleteSelectedProcess() {
     if (!process || actionBusy || !window.confirm(`Удалить техпроцесс "${process.equipment}"? Действие нельзя отменить.`)) return;
     setActionBusy(true); setError('');
     try {
       const res = await fetch(`${API}/nomenclature/${encodeURIComponent(process.id)}/process`, { method: 'DELETE' });
       if (!res.ok) throw new Error(await apiErrorMessage(res, 'Не удалось удалить техпроцесс'));
-      setItems(prev => prev.filter(item => item.id !== process.id));
-      setProcess(null);
-      setSelectedId('');
-      setView('card');
-      setReloadKey(key => key + 1);
+      onBack();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Не удалось удалить техпроцесс');
     } finally {
       setActionBusy(false);
     }
   }
-  const sections = process ? Array.from(new Set(process.processSteps.map(step => step.section))).sort() : [];
-  const sectionRows = process ? sections.map(section => {
-    const steps = process.processSteps.filter(step => step.section === section);
+
+  async function openVersion(version: NomenclatureProcessVersion) {
+    if (!process) return;
+    setActionBusy(true); setError('');
+    try {
+      const json = await getJson<ProductProcess>(`${API}/nomenclature/${encodeURIComponent(process.id)}/versions/${encodeURIComponent(version.id)}`);
+      setPreviewProcess(json);
+      setEditingVersionId(null);
+      setView('card');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Не удалось открыть версию');
+    } finally {
+      setActionBusy(false);
+    }
+  }
+
+  async function activateVersion(version: NomenclatureProcessVersion) {
+    if (!process || actionBusy || version.status === 'active' || !window.confirm(`Сделать v${version.versionNo} активной версией техпроцесса?`)) return;
+    setActionBusy(true); setError('');
+    try {
+      const res = await fetch(`${API}/nomenclature/${encodeURIComponent(process.id)}/versions/${encodeURIComponent(version.id)}/activate`, { method: 'POST' });
+      if (!res.ok) throw new Error(await apiErrorMessage(res, 'Не удалось активировать версию'));
+      await loadCard('card');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Не удалось активировать версию');
+    } finally {
+      setActionBusy(false);
+    }
+  }
+
+  async function copyVersion(version: NomenclatureProcessVersion) {
+    if (!process || actionBusy) return;
+    setActionBusy(true); setError('');
+    try {
+      const res = await fetch(`${API}/nomenclature/${encodeURIComponent(process.id)}/versions/${encodeURIComponent(version.id)}/copy`, { method: 'POST' });
+      if (!res.ok) throw new Error(await apiErrorMessage(res, 'Не удалось создать копию версии'));
+      await loadCard('versions');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Не удалось создать копию версии');
+    } finally {
+      setActionBusy(false);
+    }
+  }
+
+  async function editVersion(version: NomenclatureProcessVersion) {
+    if (!process || actionBusy) return;
+    setActionBusy(true); setError('');
+    try {
+      const json = await getJson<ProductProcess>(`${API}/nomenclature/${encodeURIComponent(process.id)}/versions/${encodeURIComponent(version.id)}`);
+      setPreviewProcess(json);
+      setEditingVersionId(version.id);
+      setView('builder');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Не удалось открыть версию для редактирования');
+    } finally {
+      setActionBusy(false);
+    }
+  }
+
+  async function deleteVersion(version: NomenclatureProcessVersion) {
+    if (!process || actionBusy || !window.confirm(`Удалить черновик v${version.versionNo}?`)) return;
+    setActionBusy(true); setError('');
+    try {
+      const res = await fetch(`${API}/nomenclature/${encodeURIComponent(process.id)}/versions/${encodeURIComponent(version.id)}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error(await apiErrorMessage(res, 'Не удалось удалить версию'));
+      await loadCard('versions');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Не удалось удалить версию');
+    } finally {
+      setActionBusy(false);
+    }
+  }
+
+  const sections = displayProcess ? Array.from(new Set(displayProcess.processSteps.map(step => step.section))).sort() : [];
+  const sectionRows = displayProcess ? sections.map(section => {
+    const steps = displayProcess.processSteps.filter(step => step.section === section);
     return { section, count: steps.length, normHours: steps.reduce((sum, step) => sum + Number(step.normHours || 0), 0), first: steps[0], last: steps[steps.length - 1] };
   }).sort((a, b) => b.normHours - a.normHours) : [];
+
   return <>
-    <PageTitle title="Номенклатура" subtitle="Карточка номенклатуры из НСИ и техпроцесс изготовления. Пока только чтение." />
-    {error && <div className="alert">{error}</div>}{loading && <div className="loading">Загрузка номенклатуры...</div>}
-    <section className="card nomenclature-list-card"><div className="filters nomenclature-filters"><select name="nomenclature-category" aria-label="Категория номенклатуры" value={category} onChange={e=>setCategory(e.target.value)}><option value="">Все категории</option>{categories.map(c=><option key={c}>{c}</option>)}</select><select name="nomenclature-item" aria-label="Номенклатура" value={selectedId} onChange={e=>setSelectedId(e.target.value)}><option value="">Номенклатура не выбрана</option>{items.map(item=><option key={item.id} value={item.id}>{item.equipment} · {item.productCode}</option>)}</select>{canEdit && <button onClick={createNew}>{'\u041d\u043e\u0432\u0430\u044f \u043d\u043e\u043c\u0435\u043d\u043a\u043b\u0430\u0442\u0443\u0440\u0430'}</button>}</div><NomenclatureProcessTable items={items} selectedId={selectedId} onSelect={setSelectedId} /></section>
-    {process && <section className="card nomenclature-card"><div className="card-head"><div><h2>{process.equipment} · {process.productCode}</h2><p className="small">Выбранная номенклатура</p></div><div className="inline-actions"><span className="status done">{process.sourceType === 'manual' ? 'ручной техпроцесс' : 'только чтение'}</span>{canEdit && <button className="light-btn" disabled={actionBusy} onClick={copySelectedProcess}>Копировать</button>}{canEdit && process.sourceType === 'manual' && <button className="danger-btn" disabled={actionBusy} onClick={deleteSelectedProcess}>Удалить</button>}</div></div><div className="nomenclature-tabs"><button className={view === 'card' ? '' : 'light-btn'} onClick={()=>setView('card')}>Карточка номенклатуры</button><button className={view === 'route' ? '' : 'light-btn'} onClick={()=>setView('route')}>Маршрут</button>{canEdit && <button className={view === 'builder' ? '' : 'light-btn'} onClick={()=>setView('builder')}>Конструктор</button>}</div>{view === 'route' ? <ProcessStepsTable rows={process.processSteps} /> : view === 'builder' && canEdit ? <TechProcessBuilder process={process} referenceData={referenceData} onSaved={(saved)=>{ setProcess(saved); setSelectedId(saved.id); setItems(prev => [{ id: saved.id, equipment: saved.equipment, productCode: saved.productCode, category: saved.category, operationsCount: saved.processSteps.length, totalNormHours: saved.totalNormHours, confidence: saved.confidence, notes: saved.notes, sourceType: saved.sourceType }, ...prev.filter(item => item.id !== saved.id && item.productCode !== saved.productCode)]); setCategories(prev => Array.from(new Set([...prev, saved.category])).sort()); setView('card'); }} /> : <NomenclatureCard process={process} sections={sections} sectionRows={sectionRows} />}</section>}
+    <div className="nomenclature-card-shell">
+      <div className="card nomenclature-card-full">
+        <div className="card-head">
+          <button className="light-btn" onClick={onBack}>Назад к списку</button>
+          <div><h2>{displayProcess ? `${displayProcess.equipment} · ${displayProcess.productCode}` : 'Номенклатура'}</h2><p className="small">{versionEditMode ? 'Редактирование версии техпроцесса' : previewMode ? 'Просмотр старой версии' : id === '__new__' ? 'Новая номенклатура' : 'Активная карточка номенклатуры'}</p></div>
+          <div className="inline-actions">
+            {displayProcess?.versionNo && <span className={`status ${displayProcess.versionStatus || 'queued'}`}>v{displayProcess.versionNo} · {versionStatusLabel(displayProcess.versionStatus)}</span>}
+            {(previewMode || versionEditMode) && <button className="light-btn" onClick={()=>{ setPreviewProcess(null); setEditingVersionId(null); setView('card'); }}>Вернуться к активной</button>}
+            {canEdit && process && id !== '__new__' && <button className="light-btn" disabled={actionBusy} onClick={copySelectedProcess}>Копировать</button>}
+            {canEdit && process?.sourceType === 'manual' && id !== '__new__' && <button className="danger-btn" disabled={actionBusy} onClick={deleteSelectedProcess}>Удалить</button>}
+          </div>
+        </div>
+        {error && <div className="alert">{error}</div>}{loading && <div className="loading">Загрузка карточки...</div>}
+        {displayProcess && <><div className="nomenclature-tabs"><button className={view === 'card' ? '' : 'light-btn'} onClick={()=>setView('card')}>Карточка</button><button className={view === 'route' ? '' : 'light-btn'} onClick={()=>setView('route')}>Маршрут</button><button className={view === 'versions' ? '' : 'light-btn'} disabled={id === '__new__'} onClick={()=>setView('versions')}>Версии</button>{canEdit && !previewMode && <button className={view === 'builder' ? '' : 'light-btn'} onClick={()=>setView('builder')}>Конструктор</button>}</div>
+          {view === 'route' ? <ProcessStepsTable rows={displayProcess.processSteps} /> : view === 'versions' ? <NomenclatureVersionsPanel versions={versions?.versions || []} activeVersionId={versions?.activeVersionId || null} actionBusy={actionBusy} canEdit={canEdit} onEdit={editVersion} onCopy={copyVersion} onActivate={activateVersion} /> : view === 'builder' && canEdit && !previewMode ? <TechProcessBuilder key={`${displayProcess.id}-${displayProcess.versionId || 'new'}-${builderVersionId || 'create'}`} process={displayProcess} referenceData={referenceData} versionEndpoint={builderVersionEndpoint} versionMethod={builderVersionId ? 'PATCH' : 'POST'} onSaved={(saved)=>{ if (id === '__new__') { onOpen(saved.id); return; } setProcess(saved.versionStatus === 'active' ? saved : process); setPreviewProcess(null); setEditingVersionId(null); loadCard(saved.versionStatus === 'active' ? 'card' : 'versions'); }} /> : <NomenclatureCard process={displayProcess} sections={sections} sectionRows={sectionRows} />}</>}
+      </div>
+    </div>
   </>;
+}
+
+function NomenclatureVersionsPanel({ versions, activeVersionId, actionBusy, canEdit, onEdit, onCopy, onActivate }: { versions: NomenclatureProcessVersion[]; activeVersionId?: string | null; actionBusy: boolean; canEdit: boolean; onEdit: (version: NomenclatureProcessVersion) => void; onCopy: (version: NomenclatureProcessVersion) => void; onActivate: (version: NomenclatureProcessVersion) => void }) {
+  if (!versions.length) return <Empty text="Версии техпроцесса не найдены" />;
+  return <table className="compact-table nomenclature-versions-table"><thead><tr><th>Версия</th><th>Статус</th><th>Дата</th><th>Автор</th><th>Комментарий</th><th>Опер.</th><th>Норма</th><th>Действия</th></tr></thead><tbody>{versions.map(version => <tr key={version.id} className={version.id === activeVersionId ? 'selected-row' : ''}><td><b>v{version.versionNo}</b></td><td><span className={`status ${version.status}`}>{versionStatusLabel(version.status)}</span></td><td>{dateTime(version.createdAt)}</td><td>{version.createdBy || version.activatedBy || '—'}</td><td>{version.comment || '—'}</td><td>{version.operationsCount}</td><td>{hours(version.totalNormHours)}</td><td><div className="inline-actions">{canEdit && version.status !== 'active' && <button disabled={actionBusy} onClick={()=>onActivate(version)}>Сделать активной</button>}{canEdit && <button className="light-btn" disabled={actionBusy} onClick={()=>onEdit(version)}>Редактировать</button>}{canEdit && <button className="light-btn" disabled={actionBusy} onClick={()=>onCopy(version)}>Копировать версию</button>}</div></td></tr>)}</tbody></table>;
 }
 
 function NomenclatureProcessTable({ items, selectedId, onSelect }: { items: NomenclatureItem[]; selectedId: string; onSelect: (id: string) => void }) {
   if (!items.length) return <Empty text="Номенклатура не найдена" />;
-  return <div className="nomenclature-doc"><table className="compact-table nomenclature-table"><thead><tr><th>Код</th><th>Наименование</th><th>Категория</th><th>Опер.</th><th>Норма</th><th>Тип</th></tr></thead><tbody>{items.map(item => <tr key={item.id} className={`clickable ${item.id === selectedId ? 'selected-row' : ''}`} tabIndex={0} onClick={()=>onSelect(item.id)} onKeyDown={event=>{ if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelect(item.id); } }}><td><b>{item.productCode}</b></td><td><b>{item.equipment}</b>{item.notes?.length ? <div className="small">{item.notes[0]}</div> : null}</td><td>{item.category}</td><td>{item.operationsCount}</td><td>{hours(item.totalNormHours)}</td><td><span className="status done">{item.sourceType === 'manual' ? 'ручной' : 'НСИ'}</span></td></tr>)}</tbody></table></div>;
+  return <div className="nomenclature-doc"><table className="compact-table nomenclature-table"><thead><tr><th>Код</th><th>Наименование</th><th>Категория</th><th>Версия</th><th>Опер.</th><th>Норма</th><th>Тип</th></tr></thead><tbody>{items.map(item => <tr key={item.id} className={`clickable ${item.id === selectedId ? 'selected-row' : ''}`} tabIndex={0} onClick={()=>onSelect(item.id)} onKeyDown={event=>{ if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelect(item.id); } }}><td><b>{item.productCode}</b></td><td><b>{item.equipment}</b>{item.notes?.length ? <div className="small">{item.notes[0]}</div> : null}</td><td>{item.category}</td><td><b>{item.versionNo ? `v${item.versionNo}` : '—'}</b><div className="small">{versionStatusLabel(item.versionStatus)}</div></td><td>{item.operationsCount}</td><td>{hours(item.totalNormHours)}</td><td><span className="status done">{item.sourceType === 'manual' ? 'ручной' : 'НСИ'}</span></td></tr>)}</tbody></table></div>;
 }
 
 function NomenclatureCard({ process, sections, sectionRows }: { process: ProductProcess; sections: string[]; sectionRows: Array<{ section: string; count: number; normHours: number; first?: ProcessStep; last?: ProcessStep }> }) {
-  const sourceDimensions = Object.entries(process.sourceDimensions || {});
-  const summary = Object.entries(process.summary || {}).filter(([, value]) => value);
   return <div className="nomenclature-readonly">
     <div className="nomenclature-fields">
       <div><span>Код</span><b>{process.productCode}</b></div>
       <div><span>Наименование</span><b>{process.equipment}</b></div>
       <div><span>Категория</span><b>{process.category}</b></div>
+      <div><span>Версия техпроцесса</span><b>{process.versionNo ? `v${process.versionNo} · ${versionStatusLabel(process.versionStatus)}` : 'не зафиксирована'}</b></div>
       <div><span>Идентификатор</span><b>{process.id}</b></div>
       <div><span>Операций</span><b>{process.processSteps.length}</b></div>
       <div><span>Норма</span><b>{hours(process.totalNormHours)}</b></div>
       <div><span>Участков</span><b>{sections.length}</b></div>
       <div><span>Качество данных</span><b>{process.confidence}</b></div>
     </div>
-    <section className="nomenclature-band"><h3>Источник данных</h3><div className="nomenclature-source"><div><span>Файл</span><b>{process.sourceFile}</b></div><div><span>Листы</span><b>{process.sourceWorkbookSheets.join(', ') || 'не указаны'}</b></div>{sourceDimensions.map(([sheet, dim])=><div key={sheet}><span>{sheet}</span><b>{dim.rows} x {dim.columns}</b></div>)}</div>{summary.length ? <div className="nomenclature-summary">{summary.map(([key, value])=><p key={key}><b>{key}</b><span>{value}</span></p>)}</div> : null}{process.notes?.length ? <div className="nomenclature-notes">{process.notes.map(note=><p key={note}>{note}</p>)}</div> : null}</section>
     <ProcessRouteBlocks steps={process.processSteps} />
     <section className="nomenclature-band"><h3>Маршрут по участкам</h3><table className="compact-table"><thead><tr><th>Участок</th><th>Опер.</th><th>Норма</th><th>Первая операция</th><th>Последняя операция</th></tr></thead><tbody>{sectionRows.map(row=><tr key={row.section}><td><b>{row.section}</b></td><td>{row.count}</td><td>{hours(row.normHours)}</td><td>{row.first?.operationId} {row.first?.name}</td><td>{row.last?.operationId} {row.last?.name}</td></tr>)}</tbody></table></section>
   </div>;
@@ -1516,15 +1672,14 @@ function ProductionRuns() {
   async function openRun(id: string) { setSelectedId(id); setSelected(await getJson<ProductionRun>(`${API}/production/runs/${encodeURIComponent(id)}`)); }
   async function startRun() { if (!selected) return; const res = await fetch(`${API}/production/runs/${encodeURIComponent(selected.id)}/start`, { method: 'POST' }); if (!res.ok) return alert((await res.json()).message || 'Не удалось запустить производство'); await loadProduction(selected.id); }
   async function deleteRun() { if (!selected) return; const res = await fetch(`${API}/production/runs/${encodeURIComponent(selected.id)}`, { method: 'DELETE' }); if (!res.ok) { setError(apiErrorMessage(await res.json(), 'Не удалось удалить партию')); return; } setConfirmDelete(false); await loadProduction(''); }
-  async function releaseUnit(unit: ProductionUnit) { if (!selected) return; const res = await fetch(`${API}/production/runs/${encodeURIComponent(selected.id)}/units/${encodeURIComponent(unit.unitId)}/dispatch/release`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ operator: selected.operator || operator || 'Диспетчер' }) }); if (!res.ok) return alert(apiErrorMessage(await res.json(), 'Не удалось передать единицу в работу')); await loadProduction(selected.id); }
   const sections = selected ? Array.from(new Set(selected.operations.map(op => op.section))).sort() : [];
   return <>
     <PageTitle title="Запуск партии" subtitle="Производственный документ: номер партии, заказ, номенклатура из НСИ и количество единиц" />
     {error && <div className="alert">{error}</div>}{loading && <div className="loading">Загрузка партий...</div>}
     <section className="card"><h2>Новая партия</h2><div className="filters production-create"><input value={orderNumber} maxLength={20} onChange={e=>setOrderNumber(e.target.value.slice(0, 20))} placeholder="Номер заказа, до 20 символов" /><select value={productId} onChange={e=>setProductId(e.target.value)}><option value="">Выберите номенклатуру</option>{items.map(item=><option key={item.id} value={item.id}>{item.equipment} · {item.productCode} · {item.operationsCount} операций</option>)}</select><input type="number" min="1" value={quantity} onChange={e=>setQuantity(Math.max(1, Number(e.target.value) || 1))} /><select value={priority} onChange={e=>setPriority(e.target.value as Priority)}><option value="high">Высокий приоритет</option><option value="normal">Обычный приоритет</option><option value="low">Низкий приоритет</option></select><input value={operator} onChange={e=>setOperator(e.target.value)} placeholder="Оператор / инициатор" /><button onClick={()=>createRun(true)} disabled={!productId}>Запустить партию</button></div><p className="small">Партия хранит номер заказа, выбранную номенклатуру, количество, инициатора и приоритет.</p></section>
-    <div className="grid2"><section className="card"><h2>Партии</h2>{runs.length ? <div className="run-list">{runs.map(run=><button key={run.id} className={`run-tile ${run.id===selectedId?'active':''}`} onClick={()=>openRun(run.id)}><div><b>{displayRunTitle(run)}</b><span className={`status ${run.status}`}>{runStatusLabel(run.status)}</span></div><strong>{run.productName} · {run.productCode}</strong><small>{run.quantity} шт · {run.progress}% · {priorityLabel(run.priority)}</small><div className="bar"><i style={{width:`${run.progress}%`}} /></div></button>)}</div> : <Empty text="Партий пока нет" />}</section><section className="card">{selected ? <><div className="card-head"><h2>{selected.productName} · {selected.productCode}</h2><div className="inline-actions">{selected.status !== 'done' && <button onClick={startRun}>Перевести в работу</button>}<button className="danger-btn" onClick={()=>setConfirmDelete(true)}>Удалить партию</button></div></div><div className="order-info"><div><span>Партия</span><b>{displayRunTitle(selected)}</b></div><div><span>Номер заказа</span><b>{displayOrderNumber(selected.orderNumber)}</b></div><div><span>Количество</span><b>{selected.quantity}</b></div><div><span>Статус</span><b>{runStatusLabel(selected.status)}</b></div><div><span>Приоритет</span><b>{priorityLabel(selected.priority)}</b></div><div><span>Готовность</span><b>{selected.progress}%</b></div><div><span>Норма</span><b>{hours(selected.normHours)}</b></div><div><span>Оператор</span><b>{selected.operator || selected.batchCreatedBy || 'не указан'}</b></div></div><details className="technical-details"><summary>Технические данные</summary><small>{selected.id}</small></details><div className="bar big"><i style={{width:`${selected.progress}%`}} /></div><CustomerProductionRunAccessPanel runId={selected.id} runTitle={displayRunTitle(selected)} /><div className="section-tags">{sections.map(section=><span key={section}>{section}</span>)}</div><p className="small">Текущая операция: {selected.activeOperation ? `${displayOperationTitle(selected.activeOperation)} · ${selected.activeOperation.section}` : 'нет'}</p></> : <Empty text="Выберите партию" />}</section></div>
+    <div className="grid2"><section className="card"><h2>Партии</h2>{runs.length ? <div className="run-list">{runs.map(run=><button key={run.id} className={`run-tile ${run.id===selectedId?'active':''}`} onClick={()=>openRun(run.id)}><div><b>{displayRunTitle(run)}</b><span className={`status ${run.status}`}>{runStatusLabel(run.status)}</span></div><strong>{run.productName} · {run.productCode}</strong><small>{run.quantity} шт · {run.progress}% · {priorityLabel(run.priority)}</small><div className="bar"><i style={{width:`${run.progress}%`}} /></div></button>)}</div> : <Empty text="Партий пока нет" />}</section><section className="card">{selected ? <><div className="card-head"><h2>{selected.productName} · {selected.productCode}</h2><div className="inline-actions">{selected.status !== 'done' && <button onClick={startRun}>Перевести в работу</button>}<button className="danger-btn" onClick={()=>setConfirmDelete(true)}>Удалить партию</button></div></div><div className="order-info"><div><span>Партия</span><b>{displayRunTitle(selected)}</b></div><div><span>Номер заказа</span><b>{displayOrderNumber(selected.orderNumber)}</b></div><div><span>Количество</span><b>{selected.quantity}</b></div><div><span>Статус</span><b>{runStatusLabel(selected.status)}</b></div><div><span>Приоритет</span><b>{priorityLabel(selected.priority)}</b></div><div><span>Готовность</span><b>{selected.progress}%</b></div><div><span>Норма</span><b>{hours(selected.normHours)}</b></div><div><span>Версия техпроцесса</span><b>{processVersionLabel(selected)}</b></div><div><span>Оператор</span><b>{selected.operator || selected.batchCreatedBy || 'не указан'}</b></div></div><details className="technical-details"><summary>Технические данные</summary><small>{selected.id}</small></details><div className="bar big"><i style={{width:`${selected.progress}%`}} /></div><CustomerProductionRunAccessPanel runId={selected.id} runTitle={displayRunTitle(selected)} /><div className="section-tags">{sections.map(section=><span key={section}>{section}</span>)}</div><p className="small">Текущая операция: {selected.activeOperation ? `${displayOperationTitle(selected.activeOperation)} · ${selected.activeOperation.section}` : 'нет'}</p></> : <Empty text="Выберите партию" />}</section></div>
     {selected && <OperationControlBoard run={selected} />}
-    {selected?.units?.length ? <section className="card"><div className="card-head"><div><h2>Единицы партии</h2><p className="small">Табличный документ по единицам партии: текущая операция, диспетчеризация и доступность следующих операций.</p></div></div><ProductionUnitsDocument run={selected} onRelease={releaseUnit} /></section> : null}
+    {selected?.units?.length ? <section className="card"><div className="card-head"><div><h2>Единицы партии</h2><p className="small">Табличный документ по единицам партии: текущая операция и диспетчеризация.</p></div></div><ProductionUnitsDocument run={selected} /></section> : null}
     {selected && confirmDelete && <ConfirmModal title="Удалить партию?" body={`Партия ${displayRunTitle(selected)} будет удалена из производственной базы. Это действие нельзя отменить.`} confirmText="Удалить партию" onCancel={()=>setConfirmDelete(false)} onConfirm={deleteRun} />}
   </>;
 }
@@ -1533,10 +1688,10 @@ function ConfirmModal({ title, body, confirmText, onCancel, onConfirm }: { title
   return <div className="modal-backdrop" role="presentation"><section className="modal-card" role="dialog" aria-modal="true" aria-labelledby="confirm-title"><h2 id="confirm-title">{title}</h2><p>{body}</p><div className="modal-actions"><button className="secondary" onClick={onCancel}>Отмена</button><button className="danger-btn" onClick={onConfirm}>{confirmText}</button></div></section></div>;
 }
 
-function ProductionUnitsDocument({ run, onRelease }: { run: ProductionRun; onRelease: (unit: ProductionUnit) => void }) {
+function ProductionUnitsDocument({ run }: { run: ProductionRun }) {
   const units = run.units || [];
   if (!units.length) return <Empty text="Единицы партии не найдены" />;
-  return <div className="unit-doc"><table className="unit-doc-table"><thead><tr><th>Номенклатура</th><th>Партия</th><th>Единица</th><th>Текущая операция</th><th>Статус</th><th>Прогресс</th><th>Передача</th><th>Готово</th><th>Ожидает</th><th>Действие</th></tr></thead><tbody>{units.map((unit, index) => { const current = currentUnitOperation(unit); const readyCount = unit.nextReadyOperations?.length || 0; const waitingCount = unit.nextBlockedOperations?.length || 0; const dispatched = unit.dispatchStatus === 'done'; return <tr key={unit.unitId} className={unit.canReleaseNext && !dispatched ? 'needs-action' : ''}><td>{index === 0 ? <><b>{run.productName}</b><span>{run.productCode}</span></> : null}</td><td>{index === 0 ? <><b>{displayRunTitle(run)}</b><span>{displayOrderNumber(run.orderNumber)} · {priorityLabel(run.priority)}</span><details className="technical-details"><summary>Технические данные</summary><small>{run.id}</small></details></> : null}</td><td><b>{unit.unitNo}/{run.launchedQuantity || run.quantity}</b></td><td><b>{current?.section || 'нет участка'}</b><span>{displayOperationDetail(current)}</span></td><td><span className={`status ${unit.status}`}>{runStatusLabel(unit.status)}</span></td><td><div className="plan-progress"><span>{unit.progress}%</span><div className="bar"><i style={{width:`${unit.progress}%`}} /></div></div></td><td>{unit.dispatchOperationId ? <><b>{dispatched ? 'передано' : 'ожидает передачи'}</b><span>{unit.dispatchCompletedAt ? new Date(unit.dispatchCompletedAt).toLocaleString('ru-RU') : 'готово к передаче'}</span></> : <span className="small">не передавалась</span>}</td><td>{readyCount}</td><td>{waitingCount ? displayBlockedBy(unit.nextBlockedOperations) || waitingCount : '—'}</td><td><button disabled={!unit.canReleaseNext || dispatched} onClick={()=>onRelease(unit)}>{dispatched ? 'Передано' : 'Передать'}</button></td></tr>; })}</tbody></table></div>;
+  return <div className="unit-doc"><table className="unit-doc-table"><thead><tr><th>Номенклатура</th><th>Партия</th><th>Единица</th><th>Текущая операция</th><th>Статус</th><th>Прогресс</th><th>Передача</th></tr></thead><tbody>{units.map((unit, index) => { const current = currentUnitOperation(unit); const dispatched = unit.dispatchStatus === 'done'; return <tr key={unit.unitId} className={unit.canReleaseNext && !dispatched ? 'needs-action' : ''}><td>{index === 0 ? <><b>{run.productName}</b><span>{run.productCode}</span></> : null}</td><td>{index === 0 ? <><b>{displayRunTitle(run)}</b><span>{displayOrderNumber(run.orderNumber)} · {priorityLabel(run.priority)}</span><details className="technical-details"><summary>Технические данные</summary><small>{run.id}</small></details></> : null}</td><td><b>{unit.unitNo}/{run.launchedQuantity || run.quantity}</b></td><td><b>{current?.section || 'нет участка'}</b><span>{displayOperationDetail(current)}</span></td><td><span className={`status ${unit.status}`}>{runStatusLabel(unit.status)}</span></td><td><div className="plan-progress"><span>{unit.progress}%</span><div className="bar"><i style={{width:`${unit.progress}%`}} /></div></div></td><td>{unit.dispatchOperationId ? <><b>{dispatched ? 'передано' : 'ожидает передачи'}</b><span>{unit.dispatchCompletedAt ? new Date(unit.dispatchCompletedAt).toLocaleString('ru-RU') : 'готово к передаче'}</span></> : <span className="small">не передавалась</span>}</td></tr>; })}</tbody></table></div>;
 }
 
 function OperationControlBoard({ run }: { run: ProductionRun }) {
@@ -1670,7 +1825,7 @@ function ShiftsKpi({ sections, people }: { sections: string[]; people: Person[] 
 
 function Import({ onDone }: { onDone: () => void }) { const [result, setResult] = useState<any>(null); async function upload(e: React.FormEvent<HTMLFormElement>) { e.preventDefault(); const form = new FormData(e.currentTarget); const res = await fetch(`${API}/import/orders-excel`, { method: 'POST', body: form }); setResult(await res.json()); onDone(); } return <section className="card"><h2>Импорт заказов из Excel</h2><form onSubmit={upload} className="row"><input name="file" type="file" accept=".xlsx,.xls" required /><button>Импортировать</button></form>{result && <pre>{JSON.stringify(result, null, 2)}</pre>}</section>; }
 function Orders({ orders, onOpenOrder }: { orders: Order[]; onOpenOrder: (id: number) => void }) { return <section className="card"><h2>Заказы</h2><OrderTiles orders={orders} onOpenOrder={onOpenOrder} /></section>; }
-function OrderTiles({ orders, onOpenOrder, compact }: { orders: Order[]; onOpenOrder: (id: number) => void; compact?: boolean }) { return <div className={compact ? 'order-tiles compact' : 'order-tiles'}>{orders.map(o => <button className="order-tile" key={o.id} onClick={() => onOpenOrder(o.id)}><div className="tile-top"><b>{o.orderNumber}</b><span>{o.progress}%</span></div><div className="small">{o.productCode} {o.productName}</div><div>Количество: <b>{o.quantity}</b></div><div>Срок: {date(o.dueDate)}</div><div className="bar"><i style={{width:`${o.progress}%`}} /></div></button>)}</div>; }
+function OrderTiles({ orders, onOpenOrder, compact }: { orders: Order[]; onOpenOrder: (id: number) => void; compact?: boolean }) { if (!orders.length) return <Empty text="Активные заказы не найдены" />; return <div className={compact ? 'order-tiles compact' : 'order-tiles'}>{orders.map(o => <button className="order-tile" key={o.id} onClick={() => onOpenOrder(o.id)}><div className="tile-top"><b>{o.orderNumber}</b><span>{o.progress}%</span></div><div className="small">{o.productCode} {o.productName}</div><div>Количество: <b>{o.quantity}</b></div><div>Срок: {date(o.dueDate)}</div><div className="bar"><i style={{width:`${o.progress}%`}} /></div></button>)}</div>; }
 function OrderCard({ orderId, people, onBack, onArchived }: { orderId: number; people: Person[]; onBack: () => void; onArchived: () => void }) { const [order, setOrder] = useState<any>(null); async function loadOrder() { setOrder(await getJson(`${API}/orders/${orderId}`)); } useEffect(() => { loadOrder(); }, [orderId]); async function setStage(op: Operation & any, action: 'start'|'finish') { const person = people.find(p => p.section === op.section || p.fullName === op.name); const effectiveAction = action === 'start' && (op.status === 'work' || op.status === 'done') ? 'reset' : action === 'finish' && op.status === 'done' ? 'start' : action; const res = await fetch(`${API}/orders/${orderId}/operations/${op.id}/${effectiveAction}`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ personId: person?.id }) }); if (!res.ok) alert((await res.json()).message || 'Не удалось обновить этап'); await loadOrder(); } async function archiveOrder() { const res = await fetch(`${API}/orders/${orderId}/archive`, { method:'POST' }); if (!res.ok) return alert((await res.json()).message || 'Не удалось архивировать заказ'); onArchived(); } if (!order) return <section className="card">Загрузка карточки заказа...</section>; const allDone = order.operations.length > 0 && order.operations.every((op: Operation) => op.status === 'done'); const archived = order.status === 'archived'; return <><section className="card"><div className="card-head"><button onClick={onBack}>← К списку заказов</button>{allDone && !archived && <button className="archive-btn" onClick={archiveOrder}>Закончить работу с заказом</button>}{archived && <span className="archive-badge">Архив</span>}</div><h2>Карточка заказа {order.orderNumber}</h2><div className="order-info"><div><span>Изделие</span><b>{order.productCode} {order.productName}</b></div><div><span>Количество</span><b>{order.quantity}</b></div><div><span>Срок</span><b>{date(order.dueDate)}</b></div><div><span>Готовность</span><b>{order.progress}%</b></div></div><div className="bar big"><i style={{width:`${order.progress}%`}} /></div><CustomerAccessPanel orderId={order.id} orderNumber={order.orderNumber} /></section><section className="card"><h2>Этапы и статусы</h2><table><thead><tr><th>№</th><th>Этап</th><th>Статус</th><th>Принято в работу</th><th>Готов</th><th>Исполнитель</th><th>Старт</th><th>Финиш</th></tr></thead><tbody>{order.operations.map((op: Operation & any)=><tr key={op.id}><td>{op.operationCode}</td><td>{op.name}<div className="small">{op.section}</div></td><td><span className={`status ${op.status}`}>{op.status}</span></td><td>{archived ? '—' : <button className="light-btn" onClick={()=>setStage(op,'start')}>{op.status === 'work' || op.status === 'done' ? '✓ Снять' : 'Принято'}</button>}</td><td>{archived ? '—' : <button className="light-btn done-btn" onClick={()=>setStage(op,'finish')}>{op.status === 'done' ? '✓ Снять' : 'Готов'}</button>}</td><td>{people.find(p=>p.id===op.assignedPersonId)?.fullName || ''}</td><td>{op.startedAt ? new Date(op.startedAt).toLocaleString('ru-RU') : ''}</td><td>{op.finishedAt ? new Date(op.finishedAt).toLocaleString('ru-RU') : ''}</td></tr>)}</tbody></table></section></>; }
 function ProductionRunCard({ runId, onBack }: { runId: string; onBack: () => void }) {
   const [run, setRun] = useState<ProductionRun | null>(null);
@@ -1680,7 +1835,7 @@ function ProductionRunCard({ runId, onBack }: { runId: string; onBack: () => voi
   if (!run) return <section className="card">Загрузка карточки партии...</section>;
   const units = run.units || [];
   const operations = units.length ? units.flatMap(unit => unit.operations.map(op => ({ ...op, unitNo: unit.unitNo, unitId: unit.unitId }))) : run.operations.map(op => ({ ...op, unitNo: 1, unitId: run.id }));
-  return <><section className="card run-card"><div className="card-head"><button onClick={onBack}>← К архиву</button>{run.status === 'done' && <span className="archive-badge">Архив</span>}</div><h2>Карточка партии {displayRunTitle(run)}</h2><div className="order-info"><div><span>Номенклатура</span><b>{run.productCode} {run.productName}</b></div><div><span>Номер заказа</span><b>{displayOrderNumber(run.orderNumber)}</b></div><div><span>Количество</span><b>{run.launchedQuantity || run.quantity}</b></div><div><span>Статус</span><b>{runStatusLabel(run.status)}</b></div><div><span>Готовность</span><b>{run.progress}%</b></div><div><span>Норма</span><b>{hours(run.normHours)}</b></div><div><span>Факт от начала до конца</span><b>{durationLabel(run.actualDurationMinutes, run.actualDurationHours)}</b></div><div><span>Создан</span><b>{dateTime(run.createdAt)}</b></div><div><span>Старт</span><b>{dateTime(run.startedAt)}</b></div><div><span>Финиш</span><b>{dateTime(run.completedAt)}</b></div><div><span>Инициатор</span><b>{run.operator || 'не указан'}</b></div></div><details className="technical-details"><summary>Технические данные</summary><small>{run.id}</small></details><div className="bar big"><i style={{width:`${run.progress}%`}} /></div><CustomerProductionRunAccessPanel runId={run.id} runTitle={displayRunTitle(run)} />{run.comment && <p className="small">{run.comment}</p>}</section><OperationControlBoard run={run} /><section className="card"><h2>Единицы партии</h2>{units.length ? <table className="compact-table"><thead><tr><th>Единица</th><th>Статус</th><th>Готовность</th><th>Старт</th><th>Финиш</th><th>Факт</th></tr></thead><tbody>{units.map(unit=><tr key={unit.unitId}><td><b>{unit.unitNo}/{run.launchedQuantity || run.quantity}</b><details className="technical-details"><summary>Технические данные</summary><small>{unit.unitId}</small></details></td><td><span className={`status ${unit.status}`}>{runStatusLabel(unit.status)}</span></td><td>{unit.progress}%</td><td>{dateTime(unit.startedAt)}</td><td>{dateTime(unit.completedAt)}</td><td>{durationLabel(unit.actualDurationMinutes, unit.actualDurationHours)}</td></tr>)}</tbody></table> : <Empty text="Единицы партии не найдены" />}</section><section className="card"><h2>Операции партии</h2><ProductionRunOperationsReadonly rows={operations} /></section></>;
+  return <><section className="card run-card"><div className="card-head"><button onClick={onBack}>← К архиву</button>{run.status === 'done' && <span className="archive-badge">Архив</span>}</div><h2>Карточка партии {displayRunTitle(run)}</h2><div className="order-info"><div><span>Номенклатура</span><b>{run.productCode} {run.productName}</b></div><div><span>Номер заказа</span><b>{displayOrderNumber(run.orderNumber)}</b></div><div><span>Количество</span><b>{run.launchedQuantity || run.quantity}</b></div><div><span>Статус</span><b>{runStatusLabel(run.status)}</b></div><div><span>Готовность</span><b>{run.progress}%</b></div><div><span>Норма</span><b>{hours(run.normHours)}</b></div><div><span>Версия техпроцесса</span><b>{processVersionLabel(run)}</b></div><div><span>Факт от начала до конца</span><b>{durationLabel(run.actualDurationMinutes, run.actualDurationHours)}</b></div><div><span>Создан</span><b>{dateTime(run.createdAt)}</b></div><div><span>Старт</span><b>{dateTime(run.startedAt)}</b></div><div><span>Финиш</span><b>{dateTime(run.completedAt)}</b></div><div><span>Инициатор</span><b>{run.operator || 'не указан'}</b></div></div><details className="technical-details"><summary>Технические данные</summary><small>{run.id}</small></details><div className="bar big"><i style={{width:`${run.progress}%`}} /></div><CustomerProductionRunAccessPanel runId={run.id} runTitle={displayRunTitle(run)} />{run.comment && <p className="small">{run.comment}</p>}</section><OperationControlBoard run={run} /><section className="card"><h2>Единицы партии</h2>{units.length ? <table className="compact-table"><thead><tr><th>Единица</th><th>Статус</th><th>Готовность</th><th>Старт</th><th>Финиш</th><th>Факт</th></tr></thead><tbody>{units.map(unit=><tr key={unit.unitId}><td><b>{unit.unitNo}/{run.launchedQuantity || run.quantity}</b><details className="technical-details"><summary>Технические данные</summary><small>{unit.unitId}</small></details></td><td><span className={`status ${unit.status}`}>{runStatusLabel(unit.status)}</span></td><td>{unit.progress}%</td><td>{dateTime(unit.startedAt)}</td><td>{dateTime(unit.completedAt)}</td><td>{durationLabel(unit.actualDurationMinutes, unit.actualDurationHours)}</td></tr>)}</tbody></table> : <Empty text="Единицы партии не найдены" />}</section><section className="card"><h2>Операции партии</h2><ProductionRunOperationsReadonly rows={operations} /></section></>;
 }
 
 function ProductionRunOperationsReadonly({ rows }: { rows: Array<ProductionOperation & { unitNo?: number; unitId?: string }> }) {
@@ -1709,3 +1864,4 @@ function Archive({ orders, productionRuns, onOpenOrder, onOpenRun }: { orders: O
 function People({ people, sections, onDone }: { people: Person[]; sections: string[]; onDone: () => void }) { async function add(e: React.FormEvent<HTMLFormElement>) { e.preventDefault(); const form = new FormData(e.currentTarget); await fetch(`${API}/people`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(Object.fromEntries(form)) }); e.currentTarget.reset(); onDone(); } return <section className="card"><h2>Исполнители</h2><form className="row" onSubmit={add}><input name="fullName" placeholder="ФИО" required /><select name="section">{sections.map(s=><option key={s}>{s}</option>)}</select><button>Добавить</button></form><table><tbody>{people.map(p=><tr key={p.id}><td>{p.fullName}</td><td>{p.section}</td></tr>)}</tbody></table></section>; }
 
 createRoot(document.getElementById('root')!).render(<App />);
+

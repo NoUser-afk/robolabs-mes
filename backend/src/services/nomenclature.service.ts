@@ -11,7 +11,14 @@ export class NomenclatureService {
   nomenclature(category?: string) { return this.mes.nomenclature(category); }
   nomenclatureCategories() { return this.mes.nomenclatureCategories(); }
   nomenclatureProcess(id: string) { return this.mes.nomenclatureProcess(id); }
-  saveNomenclatureProcess(body: SaveNomenclatureProcessBody) { return this.mes.saveNomenclatureProcess(body); }
-  copyNomenclatureProcess(id: string) { return this.mes.copyNomenclatureProcess(id); }
+  nomenclatureProcessVersions(id: string) { return this.mes.nomenclatureProcessVersions(id); }
+  nomenclatureProcessVersion(id: string, versionId: string) { return this.mes.nomenclatureProcessVersion(id, versionId); }
+  createNomenclatureProcessVersion(id: string, body: SaveNomenclatureProcessBody, actor?: string) { return this.mes.createNomenclatureProcessVersion(id, body, actor); }
+  updateNomenclatureProcessVersion(id: string, versionId: string, body: SaveNomenclatureProcessBody, actor?: string) { return this.mes.updateNomenclatureProcessVersion(id, versionId, body, actor); }
+  activateNomenclatureProcessVersion(id: string, versionId: string, actor?: string) { return this.mes.activateNomenclatureProcessVersion(id, versionId, actor); }
+  copyNomenclatureProcessVersion(id: string, versionId: string, actor?: string) { return this.mes.copyNomenclatureProcessVersion(id, versionId, actor); }
+  deleteNomenclatureProcessVersion(id: string, versionId: string) { return this.mes.deleteNomenclatureProcessVersion(id, versionId); }
+  saveNomenclatureProcess(body: SaveNomenclatureProcessBody, actor?: string) { return this.mes.saveNomenclatureProcess(body, actor); }
+  copyNomenclatureProcess(id: string, actor?: string) { return this.mes.copyNomenclatureProcess(id, actor); }
   deleteNomenclatureProcess(id: string) { return this.mes.deleteNomenclatureProcess(id); }
 }

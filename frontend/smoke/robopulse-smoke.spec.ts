@@ -318,7 +318,7 @@ test('dispatcher can launch one unit, cannot exceed order balance, and can relea
 });
 
 test('technologist save process updates nomenclature card data', async ({ page }) => {
-  const finishConsole = consoleGuard(page);
+  const finishConsole = consoleGuard(page, [/409 \(Conflict\)/i]);
   await loginByApi(page, 'technologist', 'technologist');
   const saved = await page.evaluate(async () => {
     const listRes = await fetch('/api/nomenclature', { credentials: 'include' });
@@ -327,25 +327,36 @@ test('technologist save process updates nomenclature card data', async ({ page }
     const processRes = await fetch(`/api/nomenclature/${encodeURIComponent(item.id)}/process`, { credentials: 'include' });
     const process = await processRes.json();
     const marker = `Smoke save ${Date.now()}`;
+    const basePayload = {
+      id: process.id,
+      equipment: process.equipment,
+      productCode: process.productCode,
+      category: process.category || 'Smoke',
+      notes: [...(process.notes || []), marker],
+      summary: process.summary || {},
+      processSteps: process.processSteps,
+    };
+    const conflictRes = await fetch('/api/nomenclature/processes', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(basePayload),
+    });
+    const conflictPayload = await conflictRes.json().catch(() => ({}));
     const res = await fetch('/api/nomenclature/processes', {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        id: process.id,
-        equipment: process.equipment,
-        productCode: process.productCode,
-        category: process.category || 'Smoke',
-        notes: [...(process.notes || []), marker],
-        summary: process.summary || {},
-        processSteps: process.processSteps,
-      }),
+      body: JSON.stringify({ ...basePayload, replaceExistingProductCode: true }),
     });
     const payload = await res.json().catch(() => ({}));
     const cardRes = await fetch(`/api/nomenclature/${encodeURIComponent(payload.id || process.id)}/process`, { credentials: 'include' });
     const card = await cardRes.json();
-    return { ok: res.ok, status: res.status, marker, payload, card };
+    return { ok: res.ok, status: res.status, marker, payload, card, conflict: { ok: conflictRes.ok, status: conflictRes.status, payload: conflictPayload } };
   });
+  expect(saved.conflict.ok, JSON.stringify(saved)).toBeFalsy();
+  expect(saved.conflict.status, JSON.stringify(saved)).toBe(409);
+  expect(saved.conflict.payload?.code, JSON.stringify(saved)).toBe('NOMENCLATURE_PRODUCT_CODE_EXISTS');
   expect(saved.ok, JSON.stringify(saved)).toBeTruthy();
   expect(saved.card.notes).toContain(saved.marker);
   await finishConsole();

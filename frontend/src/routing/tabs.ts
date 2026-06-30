@@ -3,7 +3,7 @@ import type { AuthUser } from '../api/types';
 export const MAIN_TABS = ['dispatch', 'terminal', 'director'] as const;
 export const ADDITIONAL_TABS = ['process-graph', 'nomenclature', 'reference-sections', 'reference-operations', 'shifts-kpi', 'production', 'import', 'orders', 'people', 'archive'] as const;
 const LAST_TAB_STORAGE_PREFIX = 'mes:last-tab';
-const ALL_TABS = [...MAIN_TABS, ...ADDITIONAL_TABS, 'order-card', 'production-run-card'] as const;
+const ALL_TABS = [...MAIN_TABS, ...ADDITIONAL_TABS, 'order-card', 'production-run-card', 'nomenclature-card'] as const;
 
 export function label(tab: string) {
   if (tab === 'shifts-kpi') return 'Смены и KPI';
@@ -66,7 +66,7 @@ export function canOpenTab(user: AuthUser, tab: string) {
   if (tab === 'terminal') return role === 'operator' || role === 'dispatcher';
   if (tab === 'dispatch') return role === 'dispatcher' || role === 'director';
   if (tab === 'process-graph') return role === 'technologist' || role === 'dispatcher';
-  if (tab === 'nomenclature') return role === 'technologist' || role === 'dispatcher';
+  if (tab === 'nomenclature' || tab === 'nomenclature-card') return role === 'technologist' || role === 'dispatcher';
   if (['reference-sections', 'reference-operations'].includes(tab)) return role === 'technologist' || role === 'dispatcher';
   if (['production', 'import', 'orders', 'archive', 'shifts-kpi'].includes(tab)) return role === 'dispatcher';
   if (tab === 'people') return false;

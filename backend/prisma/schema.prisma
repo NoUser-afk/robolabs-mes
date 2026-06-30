@@ -247,10 +247,40 @@ model NomenclatureProcessRecord {
   operationsCount Int     @default(0)
   totalNormHours Float    @default(0)
   confidence     String   @default("manual")
+  activeVersionId String?
+  versionCounter  Int     @default(1)
   data           Json
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+  versions       NomenclatureProcessVersion[]
 
+  @@index([productCode])
+  @@index([category])
+  @@index([activeVersionId])
+}
+
+model NomenclatureProcessVersion {
+  id              String   @id
+  processId       String
+  versionNo       Int
+  status          String   @default("draft")
+  equipment       String
+  productCode     String
+  category        String
+  operationsCount Int      @default(0)
+  totalNormHours  Float    @default(0)
+  confidence      String   @default("manual")
+  comment         String?
+  createdBy       String?
+  activatedBy     String?
+  activatedAt     DateTime?
+  data            Json
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  process         NomenclatureProcessRecord @relation(fields: [processId], references: [id], onDelete: Cascade)
+
+  @@unique([processId, versionNo])
+  @@index([processId, status])
   @@index([productCode])
   @@index([category])
 }
@@ -262,6 +292,8 @@ model ProductionRunRecord {
   productId   String?
   productCode String?
   productName String?
+  processVersionId String?
+  processVersionNo Int?
   quantity    Int?
   status      String?
   priority    String?
@@ -274,6 +306,7 @@ model ProductionRunRecord {
 
   @@index([orderNumber])
   @@index([productCode])
+  @@index([processVersionId])
   @@index([status])
 }
 
@@ -289,6 +322,10 @@ model ProductionRun {
   productId        String
   productCode      String
   productName      String
+  processVersionId String?
+  processVersionNo Int?
+  processSourceId  String?
+  processSnapshotAt DateTime?
   quantity         Int
   totalQuantity    Int?
   launchedQuantity Int?
@@ -310,6 +347,7 @@ model ProductionRun {
 
   @@index([orderNumber])
   @@index([productCode])
+  @@index([processVersionId])
   @@index([status])
   @@index([orderId, status])
   @@index([archived, testData, status])

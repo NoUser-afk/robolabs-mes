@@ -60,6 +60,14 @@ function blueprintDraftPayload(equipment: string, productCode: string, category:
   return { equipment, productCode, category, notes: notes.split('\n').map(item => item.trim()).filter(Boolean), processSteps: steps };
 }
 
+const PRODUCT_CODE_EXISTS = 'NOMENCLATURE_PRODUCT_CODE_EXISTS';
+
+function productCodeConflictPayload(payload: any) {
+  if (payload?.code === PRODUCT_CODE_EXISTS) return payload;
+  if (payload?.message?.code === PRODUCT_CODE_EXISTS) return payload.message;
+  return null;
+}
+
 function validateBlueprintDraft(equipment: string, productCode: string, category: string, steps: BlueprintStepDraft[]): BlueprintValidationIssue[] {
   const issues: BlueprintValidationIssue[] = [];
   if (!equipment.trim()) issues.push({ type: 'error', message: 'Укажите наименование номенклатуры' });
@@ -146,7 +154,7 @@ function blueprintIssueMap(issues: BlueprintValidationIssue[]) {
   }, new Map<string, BlueprintValidationIssue['type']>());
 }
 
-export function TechProcessBuilder({ process, referenceData, onSaved }: { process: ProductProcess; referenceData: ReferenceData; onSaved: (process: ProductProcess) => void }) {
+export function TechProcessBuilder({ process, referenceData, onSaved, versionEndpoint, versionMethod = 'POST' }: { process: ProductProcess; referenceData: ReferenceData; onSaved: (process: ProductProcess) => void; versionEndpoint?: string; versionMethod?: 'POST' | 'PATCH' }) {
   const [equipment, setEquipment] = useState(process.equipment);
   const [productCode, setProductCode] = useState(process.productCode);
   const [category, setCategory] = useState(process.sourceType === 'manual' ? process.category : 'Ручная номенклатура');
@@ -157,6 +165,7 @@ export function TechProcessBuilder({ process, referenceData, onSaved }: { proces
   const [linkFrom, setLinkFrom] = useState('');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
+  const [versionComment, setVersionComment] = useState('');
   const [builderQuery, setBuilderQuery] = useState('');
   const [history, setHistory] = useState<BlueprintStepDraft[][]>([]);
   const [savedSnapshot, setSavedSnapshot] = useState(() => JSON.stringify(blueprintDraftPayload(process.equipment, process.productCode, process.sourceType === 'manual' ? process.category : 'Ручная номенклатура', process.notes?.join('\n') || '', ensureBlueprintPositions(blueprintStepsFromProcess(process)))));
@@ -173,6 +182,7 @@ export function TechProcessBuilder({ process, referenceData, onSaved }: { proces
     setGraphOpen(false);
     setLinkFrom('');
     setMessage('');
+    setVersionComment('');
     setHistory([]);
     setSavedSnapshot(JSON.stringify(blueprintDraftPayload(process.equipment, process.productCode, nextCategory, nextNotes, nextSteps)));
   }, [process.id]);
@@ -334,7 +344,7 @@ export function TechProcessBuilder({ process, referenceData, onSaved }: { proces
   };
   const selectedOperationInReference = operationOptions.some(item => item.operationCode === selected?.operationId);
   const selectedSectionInReference = sectionOptions.includes(selected?.section || '');
-  async function save() {
+  async function save(activate = true) {
     if (validationErrors.length) {
       const first = validationErrors[0];
       if (first.code) setSelectedCode(first.code);
@@ -342,27 +352,55 @@ export function TechProcessBuilder({ process, referenceData, onSaved }: { proces
       return;
     }
     setSaving(true); setMessage('');
-    const payload = blueprintDraftPayload(equipment, productCode, category, notes, steps);
-    const res = await fetch(`${API}/nomenclature/processes`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-    const json = await res.json();
+    const draftPayload = blueprintDraftPayload(equipment, productCode, category, notes, steps);
+    const payload = { ...draftPayload, activate, versionComment: versionComment.trim() };
+    const savePayload = async (replaceExistingProductCode = false) => {
+      const res = await fetch(versionEndpoint || `${API}/nomenclature/processes`, {
+        method: versionEndpoint ? versionMethod : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(replaceExistingProductCode ? { ...payload, replaceExistingProductCode } : payload),
+      });
+      let json: any = null;
+      try {
+        json = await res.json();
+      } catch {
+        json = null;
+      }
+      return { res, json };
+    };
+    let { res, json } = await savePayload();
+    const conflict = !res.ok ? productCodeConflictPayload(json) : null;
+    if (conflict) {
+      const existing = conflict.existing || {};
+      const existingLabel = [existing.equipment, existing.productCode].filter(Boolean).join(' · ') || 'существующей номенклатуры';
+      const confirmed = window.confirm(`Код номенклатуры "${productCode}" уже используется: ${existingLabel}.\n\nСохранить этот техпроцесс как новую версию существующей номенклатуры?`);
+      if (!confirmed) {
+        setSaving(false);
+        setMessage('Сохранение отменено: код номенклатуры уже используется.');
+        return;
+      }
+      ({ res, json } = await savePayload(true));
+    }
     setSaving(false);
     if (!res.ok) return setMessage(apiErrorMessage(json, 'Не удалось сохранить техпроцесс'));
-    setSavedSnapshot(JSON.stringify(payload));
+    setSavedSnapshot(JSON.stringify(draftPayload));
     setHistory([]);
-    setMessage('Техпроцесс сохранен');
+    setVersionComment('');
+    setMessage(activate ? 'Техпроцесс сохранен и сделан активным' : 'Черновик версии сохранен');
     onSaved(json);
   }
   return <div className="blueprint-builder">
     {message && <div className={message.includes('сохранен') ? 'success-note' : 'alert'}>{message}</div>}
     {dirty && <div className="draft-note">Есть несохраненный черновик. Изменения попадут в базу только после кнопки «Сохранить техпроцесс».</div>}
     <BlueprintValidationPanel issues={validationIssues} onJump={(code)=>setSelectedCode(code)} />
+    <BlueprintBuilderActions canUndo={Boolean(history.length)} dirty={dirty} hasErrors={Boolean(validationErrors.length)} saving={saving} versionMode={Boolean(versionEndpoint)} editMode={versionMethod === 'PATCH'} canActivateVersion={process.versionStatus !== 'active'} onAdd={()=>addStep()} onUndo={undo} onSaveDraft={()=>save(false)} onSaveActive={()=>save(true)} />
     <BlueprintRequisites equipment={equipment} productCode={productCode} category={category} notes={notes} onEquipment={setEquipment} onProductCode={setProductCode} onCategory={setCategory} onNotes={setNotes} />
+    <label className="version-comment-field"><span>Комментарий к версии</span><input name="blueprint-version-comment" value={versionComment} onChange={event=>setVersionComment(event.target.value)} placeholder="Что изменилось в техпроцессе" /></label>
     <div className="blueprint-layout">
       <BlueprintOperationList steps={steps} filteredSteps={filteredSteps} selectedCode={selected?.operationId || ''} query={builderQuery} levelGroups={levelGroups} issueMap={issueMap} onQuery={setBuilderQuery} onSelect={setSelectedCode} onOpenGraph={()=>setGraphOpen(true)} />
       <BlueprintStepEditor selected={selected} steps={steps} operationOptions={operationOptions} sectionOptions={sectionOptions} issueMap={issueMap} selectedOperationInReference={selectedOperationInReference} selectedSectionInReference={selectedSectionInReference} onRemove={removeStep} onApplyOperationRef={applyOperationRef} onUpdate={updateStep} onToggleLink={toggleLink} />
     </div>
-    <BlueprintBuilderActions canUndo={Boolean(history.length)} dirty={dirty} hasErrors={Boolean(validationErrors.length)} saving={saving} onAdd={()=>addStep()} onUndo={undo} onSave={save} />
-    {graphOpen && createPortal(<BlueprintGraphWindow steps={steps} selectedCode={selected?.operationId || ''} linkFrom={linkFrom} sectionOptions={sectionOptions} operationOptions={operationOptions} validationIssues={validationIssues} onClose={()=>{ setGraphOpen(false); setLinkFrom(''); }} onSelect={setSelectedCode} onNodeClick={clickGraphNode} onStartLink={(code)=>setLinkFrom(linkFrom === code ? '' : code)} onToggleLink={toggleLink} onMove={moveStep} onBeginEdit={remember} onEditStep={commitStepEdit} onReflow={reflowRight} onRemove={removeStep} onClearLinks={clearStepLinks} onDuplicate={duplicateStep} onAdd={addStep} onSave={save} onUndo={undo} canUndo={Boolean(history.length)} dirty={dirty} saving={saving} />, document.body)}
+    {graphOpen && createPortal(<BlueprintGraphWindow steps={steps} selectedCode={selected?.operationId || ''} linkFrom={linkFrom} sectionOptions={sectionOptions} operationOptions={operationOptions} validationIssues={validationIssues} onClose={()=>{ setGraphOpen(false); setLinkFrom(''); }} onSelect={setSelectedCode} onNodeClick={clickGraphNode} onStartLink={(code)=>setLinkFrom(linkFrom === code ? '' : code)} onToggleLink={toggleLink} onMove={moveStep} onBeginEdit={remember} onEditStep={commitStepEdit} onReflow={reflowRight} onRemove={removeStep} onClearLinks={clearStepLinks} onDuplicate={duplicateStep} onAdd={addStep} onUndo={undo} canUndo={Boolean(history.length)} dirty={dirty} />, document.body)}
   </div>;
 }
 
@@ -405,8 +443,8 @@ function BlueprintStepEditor({ selected, steps, operationOptions, sectionOptions
   </aside>;
 }
 
-function BlueprintBuilderActions({ canUndo, dirty, hasErrors, saving, onAdd, onUndo, onSave }: { canUndo: boolean; dirty: boolean; hasErrors: boolean; saving: boolean; onAdd: () => void; onUndo: () => void; onSave: () => void }) {
-  return <div className="blueprint-actions"><button onClick={onAdd}>Добавить операцию</button><button className="light-btn" disabled={!canUndo} onClick={onUndo}>Отменить Ctrl+Z</button><button className="done-action" disabled={saving || !dirty || hasErrors} onClick={onSave}>{saving ? 'Сохранение...' : 'Сохранить техпроцесс'}</button></div>;
+function BlueprintBuilderActions({ canUndo, dirty, hasErrors, saving, versionMode, editMode, canActivateVersion, onAdd, onUndo, onSaveDraft, onSaveActive }: { canUndo: boolean; dirty: boolean; hasErrors: boolean; saving: boolean; versionMode?: boolean; editMode?: boolean; canActivateVersion?: boolean; onAdd: () => void; onUndo: () => void; onSaveDraft: () => void; onSaveActive: () => void }) {
+  return <div className="blueprint-actions"><button onClick={onAdd}>Добавить операцию</button><button className="light-btn" disabled={!canUndo} onClick={onUndo}>Отменить Ctrl+Z</button>{versionMode && <button className="light-btn" disabled={saving || !dirty || hasErrors} onClick={onSaveDraft}>{saving ? 'Сохранение...' : editMode ? 'Сохранить изменения' : 'Сохранить черновик версии'}</button>}{(!editMode || canActivateVersion) && <button className="done-action" disabled={saving || !dirty || hasErrors} onClick={onSaveActive}>{saving ? 'Сохранение...' : versionMode ? 'Сохранить и сделать активной' : 'Сохранить техпроцесс'}</button>}</div>;
 }
 
 function BlueprintValidationPanel({ issues, onJump }: { issues: BlueprintValidationIssue[]; onJump: (code: string) => void }) {
@@ -416,7 +454,7 @@ function BlueprintValidationPanel({ issues, onJump }: { issues: BlueprintValidat
   return <div className={`blueprint-validation ${errors ? 'has-errors' : 'has-warnings'}`}><div><b>Проверка техпроцесса</b><span>{errors ? `${errors} ошибок` : 'Ошибок нет'}{warnings ? `, ${warnings} предупреждений` : ''}</span></div><div className="blueprint-validation-list">{issues.slice(0, 6).map((issue, index) => <button key={`${issue.type}-${issue.code || 'global'}-${index}`} className={issue.type === 'error' ? 'danger-menu' : 'light-btn'} onClick={()=>issue.code && onJump(issue.code)} disabled={!issue.code}><strong>{issue.type === 'error' ? 'Ошибка' : 'Риск'}</strong>{issue.code ? ` ${issue.code}: ` : ' '}{issue.message}</button>)}{issues.length > 6 && <span>Еще {issues.length - 6}</span>}</div></div>;
 }
 
-function BlueprintGraphWindow({ steps, selectedCode, linkFrom, sectionOptions, operationOptions, validationIssues, onClose, onSelect, onNodeClick, onStartLink, onToggleLink, onMove, onBeginEdit, onEditStep, onReflow, onRemove, onClearLinks, onDuplicate, onAdd, onSave, onUndo, canUndo, dirty, saving }: BlueprintGraphWindowProps) {
+function BlueprintGraphWindow({ steps, selectedCode, linkFrom, sectionOptions, operationOptions, validationIssues, onClose, onSelect, onNodeClick, onStartLink, onToggleLink, onMove, onBeginEdit, onEditStep, onReflow, onRemove, onClearLinks, onDuplicate, onAdd, onUndo, canUndo, dirty }: BlueprintGraphWindowProps) {
   const [zoom, setZoom] = useState(0.85);
   const [linkedOnly, setLinkedOnly] = useState(false);
   const [contextMenu, setContextMenu] = useState<BlueprintContextMenu | null>(null);
@@ -638,7 +676,7 @@ function BlueprintGraphWindow({ steps, selectedCode, linkFrom, sectionOptions, o
   return <div className="blueprint-window" onClick={()=>setContextMenu(null)}>
     <div className="blueprint-window-toolbar">
       <div><b>Blueprint техпроцесса</b><span>{dirty ? 'Черновик не сохранен. Перетаскивайте блоки, соединяйте стрелками и используйте правый клик для быстрых действий.' : 'Сохраненная версия. Блоки можно перетаскивать, редактировать через меню и фильтровать по связям.'}</span></div>
-      <div className="blueprint-window-actions"><button onClick={()=>setBoundedZoom(zoom - 0.1)}>-</button><button onClick={()=>setBoundedZoom(1)}>{Math.round(zoom * 100)}%</button><button onClick={()=>setBoundedZoom(zoom + 0.1)}>+</button><button onClick={fitZoom}>Вписать</button><button onClick={onReflow}>Выровнять вправо</button><button className={linkedOnly ? '' : 'light-btn'} disabled={!selected} onClick={()=>setLinkedOnly(value => !value)}>Связи выделенной</button><button className="light-btn" disabled={!canUndo} onClick={onUndo}>Ctrl+Z</button><button onClick={()=>onAdd()}>Добавить операцию</button><button className="done-action" disabled={saving || !dirty || Boolean(graphValidationErrors.length)} onClick={onSave}>{saving ? 'Сохранение...' : 'Сохранить'}</button><button className="danger-btn" onClick={onClose}>Закрыть</button></div>
+      <div className="blueprint-window-actions"><button onClick={()=>setBoundedZoom(zoom - 0.1)}>-</button><button onClick={()=>setBoundedZoom(1)}>{Math.round(zoom * 100)}%</button><button onClick={()=>setBoundedZoom(zoom + 0.1)}>+</button><button onClick={fitZoom}>Вписать</button><button onClick={onReflow}>Выровнять вправо</button><button className={linkedOnly ? 'light-btn' : ''} aria-pressed={linkedOnly} disabled={!selected} onClick={()=>setLinkedOnly(value => !value)}>Связи выделенной</button><button className="light-btn" disabled={!canUndo} onClick={onUndo}>Ctrl+Z</button><button onClick={()=>onAdd()}>Добавить операцию</button><button className="danger-btn" onClick={onClose}>Закрыть</button></div>
     </div>
     {validationIssues.length > 0 && <div className={`blueprint-window-validation ${graphValidationErrors.length ? 'has-errors' : 'has-warnings'}`}><b>{graphValidationErrors.length ? `Ошибки: ${graphValidationErrors.length}` : 'Ошибок нет'}</b>{validationIssues.slice(0, 5).map((issue, index) => <button key={`${issue.type}-${issue.code || 'global'}-${index}`} disabled={!issue.code} onClick={()=>issue.code && scrollToCode(issue.code)}>{issue.type === 'error' ? 'Ошибка' : 'Риск'}{issue.code ? ` ${issue.code}` : ''}: {issue.message}</button>)}</div>}
     <div className="blueprint-window-nav"><input name="blueprint-graph-search" aria-label="Поиск операций на графе" value={graphQuery} onChange={event=>setGraphQuery(event.target.value)} placeholder="Поиск: Op.ID, название, участок" />{graphMatches.map(step => <button key={step.operationId} onClick={()=>scrollToCode(step.operationId)}>{step.operationId}</button>)}{graphQuery && !graphMatches.length && <span>Ничего не найдено</span>}<div className="blueprint-mini-levels">{graphLevelGroups.map(([level, group]) => <button key={level} className={group.some(step => step.operationId === selectedCode) ? '' : 'light-btn'} onClick={()=>scrollToCode(group[0].operationId)}>Ур. {level}<span>{group.length}</span></button>)}</div></div>

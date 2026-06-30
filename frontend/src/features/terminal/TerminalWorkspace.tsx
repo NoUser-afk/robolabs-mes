@@ -55,6 +55,38 @@ function filterTerminalQueue(queue: Operation[], filter: TerminalFilter) {
       && (!filter.groupOnly || isBulkActionSelectableOperation(op));
   });
 }
+type BlockingOperationTitles = Map<string, string>;
+type BlockingOperationRef = NonNullable<Operation['blockedByOperations']>[number];
+function operationLookupKeys(op: Operation) {
+  return [op.operationId, op.operationCode, op.displayId, String(op.id || '')]
+    .map(value => String(value || '').trim().toLowerCase())
+    .filter(Boolean);
+}
+function buildBlockingOperationTitles(queue: Operation[]) {
+  const titles: BlockingOperationTitles = new Map();
+  queue.forEach(op => {
+    const title = displayOperationTitle(op);
+    operationLookupKeys(op).forEach(key => titles.set(key, title));
+  });
+  return titles;
+}
+function blockingOperationLabel(op: BlockingOperationRef) {
+  const title = displayOperationTitle(op);
+  return op.section ? `${title} · ${op.section}` : title;
+}
+
+function blockedOperationLabels(items: string[] | undefined, titles: BlockingOperationTitles, operations?: Operation['blockedByOperations']) {
+  if (operations?.length) return operations.map(blockingOperationLabel);
+  if (!items?.length) return [];
+  return items.map(item => titles.get(String(item || '').trim().toLowerCase()) || displayBlockedBy([item]));
+}
+
+function BlockedOperationsList({ items, titles, operations, compact = false }: { items?: string[]; titles: BlockingOperationTitles; operations?: Operation['blockedByOperations']; compact?: boolean }) {
+  const labels = blockedOperationLabels(items, titles, operations).filter(Boolean);
+  if (!labels.length) return <span>предшествующие операции</span>;
+  if (labels.length === 1) return <span>{labels[0]}</span>;
+  return <details className={compact ? 'blocked-operations-list compact' : 'blocked-operations-list'}><summary>{labels.length} предыдущие операции</summary><ul>{labels.map((label, index) => <li key={`${label}-${index}`}>{label}</li>)}</ul></details>;
+}
 
 export function WorkCenterTerminal({ sections, people, onDone, user, terminalMode }: { sections: string[]; people: Person[]; onDone: () => void; user?: AuthUser; terminalMode?: boolean }) {
   const [section, setSection] = useState(sections[0] || '');
@@ -150,6 +182,7 @@ export function WorkCenterTerminal({ sections, people, onDone, user, terminalMod
   }, [terminalMode, productionSelection?.operationPk, productionSelection?.lockToken, operator, section, user?.login]);
   const rawQueue = data?.queue || [];
   const queue = useMemo(() => filterTerminalQueue(rawQueue, filter), [rawQueue, filter]);
+  const blockingOperationTitles = useMemo(() => buildBlockingOperationTitles(rawQueue), [rawQueue]);
   const operationOptions = useMemo(() => Array.from(new Map(rawQueue.map(op => [op.operationCode, displayOperationTitle(op)])).entries()).map(([code, title]) => ({ code, title })).sort((a, b) => a.title.localeCompare(b.title, 'ru')), [rawQueue]);
   const selectedOperations = useMemo(() => queue.filter(op => selectedOperationKeys.has(terminalOperationKey(op))), [queue, selectedOperationKeys]);
   useEffect(() => {
@@ -290,8 +323,8 @@ export function WorkCenterTerminal({ sections, people, onDone, user, terminalMod
     <TerminalFilterBar filter={filter} setFilter={setFilter} operationOptions={operationOptions} onReset={()=>setFilter(DEFAULT_TERMINAL_FILTER)} />
     {selectedOperations.length > 0 && <TerminalBulkBar selected={selectedOperations} onClear={()=>setSelectedOperationKeys(new Set())} onAction={bulkAction} />}
     <div className="terminal-workspace-grid">
-      <section className="card current-op terminal-current"><div className="card-head"><div><h2>Текущая операция</h2><p className="small">Основное действие на рабочем месте</p></div>{selectedOperation && <span className={`status ${selectedOperation.dependencyStatus === 'blocked' ? 'blocked' : selectedOperation.status}`}>{selectedOperation.dependencyStatus === 'blocked' ? 'Ожидает' : statusLabel(selectedOperation.status)}</span>}</div>{selectedOperation ? <OperationPanel op={selectedOperation} exiting={exitingOperationKeys.has(selectedOperationKey)} starting={startingOperationKeys.has(selectedOperationKey)} onAction={action} /> : <Empty text="Нет операций в очереди участка" />}</section>
-      <section className="card terminal-queue-card"><div className="card-head"><div><h2>Очередь</h2><p className="small">{sectionName}</p></div><span className="queue-count">{queue.length}</span></div><OperationQueue queue={queue} selectedKey={selectedTerminalOperationKey} selectedKeys={selectedOperationKeys} exitingKeys={exitingOperationKeys} startingKeys={startingOperationKeys} onSelect={selectProductionOperation} onToggle={toggleOperationSelection} /></section>
+      <section className="card current-op terminal-current"><div className="card-head"><div><h2>Текущая операция</h2><p className="small">Основное действие на рабочем месте</p></div>{selectedOperation && <span className={`status ${selectedOperation.dependencyStatus === 'blocked' ? 'blocked' : selectedOperation.status}`}>{selectedOperation.dependencyStatus === 'blocked' ? 'Ожидает' : statusLabel(selectedOperation.status)}</span>}</div>{selectedOperation ? <OperationPanel op={selectedOperation} blockingOperationTitles={blockingOperationTitles} exiting={exitingOperationKeys.has(selectedOperationKey)} starting={startingOperationKeys.has(selectedOperationKey)} onAction={action} /> : <Empty text="Нет операций в очереди участка" />}</section>
+      <section className="card terminal-queue-card"><div className="card-head"><div><h2>Очередь</h2><p className="small">{sectionName}</p></div><span className="queue-count">{queue.length}</span></div><OperationQueue queue={queue} selectedKey={selectedTerminalOperationKey} selectedKeys={selectedOperationKeys} exitingKeys={exitingOperationKeys} startingKeys={startingOperationKeys} blockingOperationTitles={blockingOperationTitles} onSelect={selectProductionOperation} onToggle={toggleOperationSelection} /></section>
     </div>
     <TerminalRecentEvents events={data?.recentEvents || []} />
   </>;
@@ -308,12 +341,12 @@ function TerminalBulkBar({ selected, onClear, onAction }: { selected: Operation[
   return <section className="card terminal-bulk-card"><div><b>Выбрано {selected.length} шт.</b><span>{canRun ? `${displayOperationTitle(groupable[0])} · ${groupable[0].section}` : 'Выберите несколько операций: лазер, зачистка или пробивной/координатный участок'}</span></div><div className="inline-actions"><button disabled={!canRun} onClick={()=>onAction('start')}>Начать</button><button disabled={!canRun} className="pause" onClick={()=>onAction('pause')}>Пауза</button><button disabled={!canRun} onClick={()=>onAction('resume')}>Возобновить</button><button disabled={!canRun} className="done-action" onClick={()=>onAction('complete')}>Завершить</button><button className="secondary" onClick={onClear}>Снять выбор</button></div></section>;
 }
 
-function OperationPanel({ op, exiting = false, starting = false, onAction }: { op: Operation; exiting?: boolean; starting?: boolean; onAction: (op: Operation, type: 'start'|'pause'|'resume'|'complete') => void }) {
+function OperationPanel({ op, blockingOperationTitles, exiting = false, starting = false, onAction }: { op: Operation; blockingOperationTitles: BlockingOperationTitles; exiting?: boolean; starting?: boolean; onAction: (op: Operation, type: 'start'|'pause'|'resume'|'complete') => void }) {
   const isRun = op.sourceType === 'production-run';
-  return <div className={`op-panel terminal-op-panel ${isRun ? 'production-terminal' : ''} ${op.dependencyStatus === 'blocked' ? 'blocked-op' : ''} ${starting ? 'terminal-operation-start' : ''} ${exiting ? 'terminal-operation-exit' : ''}`}><div className="terminal-op-main"><span className={`source-badge ${isRun ? 'production' : 'order'}`}>{isRun ? 'Единица' : 'Заказ'}</span><h3>{displayOperationDetail(op)}</h3><p>{op.productCode} {op.productName || 'Изделие'} · {displayOrderNumber(op.orderNumber || op.displayId)}</p>{op.blockedBy?.length ? <p className="terminal-blocked-detail">Ожидает завершения: {displayBlockedBy(op.blockedBy)}</p> : null}</div><div className="terminal-op-meta"><div><span>Единица</span><b>{op.unitLabel || '—'}</b></div><div><span>Деталь</span><b>{isRun ? (op.part || '—') : '—'}</b></div><div><span>Факт</span><b>{hours(op.actualHours)}</b></div></div><div className="terminal-op-status"><span className={`status ${op.dependencyStatus === 'blocked' ? 'blocked' : op.status}`}>{op.dependencyStatus === 'blocked' ? 'Ожидает' : statusLabel(op.status)}</span><p className="small">{op.lockedBy ? `В работе у: ${op.lockedBy}` : 'Исполнитель не назначен'}</p>{op.timeState?.activeKind && <p className="small">С {new Date(op.timeState.activeStartedAt || '').toLocaleTimeString('ru-RU')}</p>}</div><div className="actions terminal-actions"><OperationActions op={op} onAction={onAction} /></div></div>;
+  return <div className={`op-panel terminal-op-panel ${isRun ? 'production-terminal' : ''} ${op.dependencyStatus === 'blocked' ? 'blocked-op' : ''} ${starting ? 'terminal-operation-start' : ''} ${exiting ? 'terminal-operation-exit' : ''}`}><div className="terminal-op-main"><span className={`source-badge ${isRun ? 'production' : 'order'}`}>{isRun ? 'Единица' : 'Заказ'}</span><h3>{displayOperationDetail(op)}</h3><p>{op.productCode} {op.productName || 'Изделие'} · {displayOrderNumber(op.orderNumber || op.displayId)}</p>{op.blockedBy?.length ? <div className="terminal-blocked-detail"><b>Ожидает завершения:</b><BlockedOperationsList items={op.blockedBy} titles={blockingOperationTitles} operations={op.blockedByOperations} /></div> : null}</div><div className="terminal-op-meta"><div><span>Единица</span><b>{op.unitLabel || '—'}</b></div><div><span>Деталь</span><b>{isRun ? (op.part || '—') : '—'}</b></div><div><span>Факт</span><b>{hours(op.actualHours)}</b></div></div><div className="terminal-op-status"><span className={`status ${op.dependencyStatus === 'blocked' ? 'blocked' : op.status}`}>{op.dependencyStatus === 'blocked' ? 'Ожидает' : statusLabel(op.status)}</span><p className="small">{op.lockedBy ? `В работе у: ${op.lockedBy}` : 'Исполнитель не назначен'}</p>{op.timeState?.activeKind && <p className="small">С {new Date(op.timeState.activeStartedAt || '').toLocaleTimeString('ru-RU')}</p>}</div><div className="actions terminal-actions"><OperationActions op={op} blockingOperationTitles={blockingOperationTitles} onAction={onAction} /></div></div>;
 }
 
-function OperationActions({ op, onAction }: { op: Operation; onAction: (op: Operation, type: 'start'|'pause'|'resume'|'complete') => void }) {
+function OperationActions({ op, blockingOperationTitles, onAction }: { op: Operation; blockingOperationTitles: BlockingOperationTitles; onAction: (op: Operation, type: 'start'|'pause'|'resume'|'complete') => void }) {
   const [pending, setPending] = useState(false);
   const blocked = op.canStart === false && (op.status === 'new' || op.status === 'queued');
   const canComplete = op.status === 'work' || op.status === 'paused';
@@ -323,12 +356,12 @@ function OperationActions({ op, onAction }: { op: Operation; onAction: (op: Oper
     setPending(true);
     Promise.resolve(onAction(op, type)).finally(() => setPending(false));
   };
-  return <>{blocked && <span className="blocked-note">Ожидает: {displayBlockedBy(op.blockedBy) || 'предшествующие'}</span>}{(op.status === 'new' || op.status === 'queued') && <button className="terminal-start-btn" disabled={pending || blocked} onClick={()=>runAction('start')}>Начать</button>}{op.status === 'work' && <button className="terminal-pause-btn" disabled={pending} onClick={()=>runAction('pause')}>Приостановить</button>}{op.status === 'paused' && <button className="terminal-start-btn" disabled={pending} onClick={()=>runAction('resume')}>Начать</button>}{op.status !== 'done' && op.status !== 'canceled' && <button className="terminal-stop-btn" disabled={pending || !canComplete} title={completeReason} onClick={()=>runAction('complete')}>Завершить</button>}</>;
+  return <>{blocked && <div className="blocked-note terminal-blocked-note"><span>Ожидает:</span><BlockedOperationsList items={op.blockedBy} titles={blockingOperationTitles} operations={op.blockedByOperations} compact /></div>}{(op.status === 'new' || op.status === 'queued') && <button className="terminal-start-btn" disabled={pending || blocked} onClick={()=>runAction('start')}>Начать</button>}{op.status === 'work' && <button className="terminal-pause-btn" disabled={pending} onClick={()=>runAction('pause')}>Приостановить</button>}{op.status === 'paused' && <button className="terminal-start-btn" disabled={pending} onClick={()=>runAction('resume')}>Начать</button>}{op.status !== 'done' && op.status !== 'canceled' && <button className="terminal-stop-btn" disabled={pending || !canComplete} title={completeReason} onClick={()=>runAction('complete')}>Завершить</button>}</>;
 }
 
-function OperationQueue({ queue, selectedKey, selectedKeys, exitingKeys, startingKeys, onSelect, onToggle }: { queue: Operation[]; selectedKey: string; selectedKeys: Set<string>; exitingKeys: Set<string>; startingKeys: Set<string>; onSelect: (op: Operation) => void | Promise<unknown>; onToggle: (op: Operation) => void }) {
+function OperationQueue({ queue, selectedKey, selectedKeys, exitingKeys, startingKeys, blockingOperationTitles, onSelect, onToggle }: { queue: Operation[]; selectedKey: string; selectedKeys: Set<string>; exitingKeys: Set<string>; startingKeys: Set<string>; blockingOperationTitles: BlockingOperationTitles; onSelect: (op: Operation) => void | Promise<unknown>; onToggle: (op: Operation) => void }) {
   if (!queue.length) return <Empty text="Очередь пуста" />;
-  return <div className="terminal-queue-list">{queue.map(op=>{ const key = terminalOperationKey(op); const selected = key === selectedKey; const checked = selectedKeys.has(key); const exiting = exitingKeys.has(key); const starting = startingKeys.has(key); const orderLabel = displayOrderNumber(op.orderNumber || op.displayId); const groupable = isBulkActionSelectableOperation(op); return <div key={key} className={`terminal-queue-item ${groupable ? 'bulk-enabled' : 'bulk-disabled'} ${selected ? 'active' : ''} ${checked ? 'checked' : ''} ${op.sourceType === 'production-run' ? 'production-row' : ''} ${starting ? 'terminal-operation-start' : ''} ${exiting ? 'terminal-operation-exit' : ''}`}>{groupable && <label className="queue-check"><input type="checkbox" checked={checked} disabled={exiting || starting} onChange={()=>onToggle(op)} /></label>}<button type="button" disabled={exiting} onClick={()=>onSelect(op)}><div><b>{displayOperationDetail(op)}</b><span>Заказ {orderLabel} · {op.productCode} · ед. {op.unitLabel || '1/1'}</span>{op.blockedBy?.length ? <small className="queue-blocked">Ожидает: {displayBlockedBy(op.blockedBy)}</small> : null}{groupable && <small>Групповое выполнение</small>}</div><span className={`status ${op.dependencyStatus === 'blocked' ? 'blocked' : op.status}`}>{op.dependencyStatus === 'blocked' ? 'Ожидает' : statusLabel(op.status)}</span></button></div>; })}</div>;
+  return <div className="terminal-queue-list">{queue.map(op=>{ const key = terminalOperationKey(op); const selected = key === selectedKey; const checked = selectedKeys.has(key); const exiting = exitingKeys.has(key); const starting = startingKeys.has(key); const orderLabel = displayOrderNumber(op.orderNumber || op.displayId); const groupable = isBulkActionSelectableOperation(op); return <div key={key} className={`terminal-queue-item ${groupable ? 'bulk-enabled' : 'bulk-disabled'} ${selected ? 'active' : ''} ${checked ? 'checked' : ''} ${op.sourceType === 'production-run' ? 'production-row' : ''} ${starting ? 'terminal-operation-start' : ''} ${exiting ? 'terminal-operation-exit' : ''}`}>{groupable && <label className="queue-check"><input type="checkbox" checked={checked} disabled={exiting || starting} onChange={()=>onToggle(op)} /></label>}<button type="button" disabled={exiting} onClick={()=>onSelect(op)}><div><b>{displayOperationDetail(op)}</b><span>Заказ {orderLabel} · {op.productCode} · ед. {op.unitLabel || '1/1'}</span>{groupable && <small>Групповое выполнение</small>}</div><span className={`status ${op.dependencyStatus === 'blocked' ? 'blocked' : op.status}`}>{op.dependencyStatus === 'blocked' ? 'Ожидает' : statusLabel(op.status)}</span></button>{op.blockedBy?.length ? <div className="queue-blocked"><span>Ожидает:</span><BlockedOperationsList items={op.blockedBy} titles={blockingOperationTitles} operations={op.blockedByOperations} compact /></div> : null}</div>; })}</div>;
 }
 
 function TerminalRecentEvents({ events }: { events: TerminalRecentEvent[] }) {

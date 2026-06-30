@@ -94,6 +94,10 @@ type ProductionRun = {
   orderUnitFrom?: number | null;
   orderUnitTo?: number | null;
   orderBatchCode?: string | null;
+  processVersionId?: string | null;
+  processVersionNo?: number | null;
+  processSourceId?: string | null;
+  processSnapshotAt?: string | null;
   batchNumber?: string | null;
   batchName?: string | null;
   batchCreatedBy?: string | null;
@@ -155,12 +159,26 @@ type ProductProcess = {
   notes: string[];
   extractedAt?: string;
   sourceType?: string;
+  activeVersionId?: string | null;
+  versionId?: string | null;
+  versionNo?: number | null;
+  versionStatus?: string | null;
+  versionComment?: string | null;
+  versionCreatedAt?: string | null;
+  versionCreatedBy?: string | null;
+  versionActivatedAt?: string | null;
+  versionActivatedBy?: string | null;
 };
 type ManualProcessInput = {
   id?: string;
   equipment?: string;
   productCode?: string;
   category?: string;
+  activate?: boolean;
+  replaceExistingProductCode?: boolean;
+  versionComment?: string;
+  comment?: string;
+  actor?: string;
   summary?: Record<string, string>;
   notes?: string[];
   processSteps?: Array<Partial<{
@@ -179,6 +197,25 @@ type ManualProcessInput = {
     confidence: string;
     groupCapable: boolean;
   }>>;
+};
+type NomenclatureVersionStatus = 'draft' | 'active' | 'archived';
+type NomenclatureProcessVersionSummary = {
+  id: string;
+  processId: string;
+  versionNo: number;
+  status: NomenclatureVersionStatus;
+  equipment: string;
+  productCode: string;
+  category: string;
+  operationsCount: number;
+  totalNormHours: number;
+  confidence: string;
+  comment?: string | null;
+  createdBy?: string | null;
+  activatedBy?: string | null;
+  activatedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
 };
 type ProductionActionBody = { operator?: string; personName?: string; lockedBy?: string; lockToken?: string; expectedVersion?: number; reasonCode?: string; comment?: string; acceptedQty?: number; defectQty?: number; reworkQty?: number };
 type ProductionSelectionBody = { operator?: string; terminalId?: string; clientId?: string; lockToken?: string };
@@ -747,6 +784,11 @@ export class MesService {
         confidence: product.confidence,
         notes: product.notes,
         sourceType: product.sourceType || 'imported',
+        activeVersionId: product.activeVersionId || product.versionId || null,
+        versionId: product.versionId || null,
+        versionNo: product.versionNo || null,
+        versionStatus: product.versionStatus || null,
+        versionComment: product.versionComment || null,
       }));
     const categories = Array.from(new Set(allProducts.map((product) => product.category))).sort();
     return { products, categories, extractedAt: productsProcesses.extractedAt };
@@ -762,34 +804,146 @@ export class MesService {
     return product;
   }
 
-  async saveNomenclatureProcess(body: ManualProcessInput) {
-    const process = this.normalizeManualProcess(body);
-    await this.prisma.nomenclatureProcessRecord.upsert({
-      where: { id: process.id },
-      create: {
-        id: process.id,
-        equipment: process.equipment,
-        productCode: process.productCode,
-        category: process.category,
-        operationsCount: process.processSteps.length,
-        totalNormHours: process.totalNormHours,
-        confidence: process.confidence,
-        data: process as unknown as Prisma.InputJsonValue,
-      },
-      update: {
-        equipment: process.equipment,
-        productCode: process.productCode,
-        category: process.category,
-        operationsCount: process.processSteps.length,
-        totalNormHours: process.totalNormHours,
-        confidence: process.confidence,
-        data: process as unknown as Prisma.InputJsonValue,
-      },
-    });
-    return process;
+  async nomenclatureProcessVersions(id: string) {
+    const record = await this.findNomenclatureProcessRecord(id);
+    if (record) {
+      const versions = record.versions.map((version: any) => this.nomenclatureVersionSummary(version));
+      return {
+        processId: record.id,
+        activeVersionId: record.activeVersionId || null,
+        versionCounter: record.versionCounter || versions.length,
+        versions,
+        activeVersion: versions.find((version) => version.id === record.activeVersionId) || versions.find((version) => version.status === 'active') || null,
+      };
+    }
+    const imported = this.findImportedProductProcess(id);
+    if (!imported) throw new NotFoundException('РќРѕРјРµРЅРєР»Р°С‚СѓСЂР° РЅРµ РЅР°Р№РґРµРЅР°');
+    const version = this.importedNomenclatureVersionSummary(imported);
+    return { processId: imported.id, activeVersionId: version.id, versionCounter: 1, versions: [version], activeVersion: version };
   }
 
-  async copyNomenclatureProcess(id: string) {
+  async nomenclatureProcessVersion(id: string, versionId: string) {
+    const record = await this.findNomenclatureProcessRecord(id);
+    if (record) {
+      const version = this.findVersionInRecord(record, versionId);
+      return this.productProcessFromVersion(record, version);
+    }
+    const imported = this.findImportedProductProcess(id);
+    if (imported && this.isImportedVersionId(imported, versionId)) return this.importedProductProcess(imported);
+    throw new NotFoundException('Р’РµСЂСЃРёСЏ С‚РµС…РїСЂРѕС†РµСЃСЃР° РЅРµ РЅР°Р№РґРµРЅР°');
+  }
+
+  async createNomenclatureProcessVersion(id: string, body: ManualProcessInput, actor?: string) {
+    const record = id && id !== '__new__' ? await this.findNomenclatureProcessRecord(id) : null;
+    const imported = id && id !== '__new__' ? this.findImportedProductProcess(id) : null;
+    const processId = record?.id || imported?.id || (id && id !== '__new__' ? id : body.id);
+    const payload = processId ? { ...body, id: processId } : body;
+    return this.persistNomenclatureProcessVersion(payload, actor, Boolean(body.activate));
+  }
+
+  async updateNomenclatureProcessVersion(id: string, versionId: string, body: ManualProcessInput, actor?: string) {
+    return this.withSerializableRetry(async (tx) => {
+      const record = await this.findNomenclatureProcessRecord(id, tx);
+      if (!record) throw new NotFoundException('Ручной техпроцесс не найден');
+      const version = this.findVersionInRecord(record, versionId);
+      const status = this.nomenclatureVersionStatus(version.status);
+      const process = this.normalizeManualProcess({ ...body, id: record.id });
+      const comment = String(body.versionComment || body.comment || version.comment || '').trim() || null;
+      const updated = this.processWithVersionMetadata(process, {
+        versionId: version.id,
+        versionNo: version.versionNo,
+        status,
+        comment,
+        createdBy: version.createdBy || actor || null,
+        activatedBy: version.activatedBy || null,
+        activatedAt: version.activatedAt ? version.activatedAt.toISOString() : null,
+        createdAt: version.createdAt ? version.createdAt.toISOString() : null,
+      });
+      await tx.nomenclatureProcessVersion.update({
+        where: { id: version.id },
+        data: {
+          equipment: updated.equipment,
+          productCode: updated.productCode,
+          category: updated.category,
+          operationsCount: updated.processSteps.length,
+          totalNormHours: updated.totalNormHours,
+          confidence: updated.confidence,
+          comment,
+          data: updated as unknown as Prisma.InputJsonValue,
+        },
+      });
+      if (body.activate === true) return this.activateNomenclatureVersion(record.id, version.id, actor, tx);
+      if (record.activeVersionId === version.id || status === 'active') {
+        await tx.nomenclatureProcessRecord.update({
+          where: { id: record.id },
+          data: {
+            activeVersionId: version.id,
+            equipment: updated.equipment,
+            productCode: updated.productCode,
+            category: updated.category,
+            operationsCount: updated.processSteps.length,
+            totalNormHours: updated.totalNormHours,
+            confidence: updated.confidence,
+            data: updated as unknown as Prisma.InputJsonValue,
+          },
+        });
+      }
+      return updated;
+    });
+  }
+
+  async activateNomenclatureProcessVersion(id: string, versionId: string, actor?: string) {
+    return this.withSerializableRetry(async (tx) => {
+      const record = await this.findNomenclatureProcessRecord(id, tx);
+      if (!record) throw new NotFoundException('Р СѓС‡РЅРѕР№ С‚РµС…РїСЂРѕС†РµСЃСЃ РЅРµ РЅР°Р№РґРµРЅ');
+      const version = this.findVersionInRecord(record, versionId);
+      await this.activateNomenclatureVersion(record.id, version.id, actor, tx);
+      const refreshed = await this.findNomenclatureProcessRecord(record.id, tx);
+      return this.productProcessFromVersion(refreshed, this.activeVersionForRecord(refreshed));
+    });
+  }
+
+  async copyNomenclatureProcessVersion(id: string, versionId: string, actor?: string) {
+    return this.withSerializableRetry(async (tx) => {
+      const record = await this.findNomenclatureProcessRecord(id, tx);
+      if (!record) throw new NotFoundException('Р СѓС‡РЅРѕР№ С‚РµС…РїСЂРѕС†РµСЃСЃ РЅРµ РЅР°Р№РґРµРЅ');
+      const source = this.findVersionInRecord(record, versionId);
+      const process = this.productProcessFromVersion(record, source);
+      const nextNo = Math.max(record.versionCounter || 0, ...record.versions.map((version: any) => Number(version.versionNo || 0))) + 1;
+      const comment = `\u0427\u0435\u0440\u043d\u043e\u0432\u0438\u043a \u0438\u0437 v${source.versionNo}`;
+      const copy = this.processWithVersionMetadata(process, {
+        versionId: this.nomenclatureVersionId(record.id, nextNo),
+        versionNo: nextNo,
+        status: 'draft',
+        comment: `Р§РµСЂРЅРѕРІРёРє РёР· v${source.versionNo}`,
+        createdBy: actor || null,
+      });
+      await this.createNomenclatureVersionRow(record.id, copy, nextNo, 'draft', actor, `Р§РµСЂРЅРѕРІРёРє РёР· v${source.versionNo}`, tx);
+      const normalizedCopy = { ...copy, versionComment: comment };
+      await tx.nomenclatureProcessVersion.update({
+        where: { id: normalizedCopy.versionId || this.nomenclatureVersionId(record.id, nextNo) },
+        data: { comment, data: normalizedCopy as unknown as Prisma.InputJsonValue },
+      });
+      await tx.nomenclatureProcessRecord.update({ where: { id: record.id }, data: { versionCounter: nextNo } });
+      return normalizedCopy;
+    });
+  }
+
+  async deleteNomenclatureProcessVersion(id: string, versionId: string) {
+    const record = await this.findNomenclatureProcessRecord(id);
+    if (!record) throw new NotFoundException('Р СѓС‡РЅРѕР№ С‚РµС…РїСЂРѕС†РµСЃСЃ РЅРµ РЅР°Р№РґРµРЅ');
+    const version = this.findVersionInRecord(record, versionId);
+    if (record.activeVersionId === version.id || version.status === 'active') throw new BadRequestException('РђРєС‚РёРІРЅСѓСЋ РІРµСЂСЃРёСЋ С‚РµС…РїСЂРѕС†РµСЃСЃР° СѓРґР°Р»РёС‚СЊ РЅРµР»СЊР·СЏ');
+    if (version.status !== 'draft') throw new BadRequestException('РЈРґР°Р»СЏС‚СЊ РјРѕР¶РЅРѕ С‚РѕР»СЊРєРѕ С‡РµСЂРЅРѕРІС‹Рµ РІРµСЂСЃРёРё');
+    await this.prisma.nomenclatureProcessVersion.delete({ where: { id: version.id } });
+    return { ok: true, id: version.id, processId: record.id };
+  }
+
+  async saveNomenclatureProcess(body: ManualProcessInput, actor?: string) {
+    return this.persistNomenclatureProcessVersion(body, actor, true, true);
+  }
+
+  async copyNomenclatureProcess(id: string, actor?: string) {
     const source = (await this.allProductProcesses()).find((item) => item.id === id || item.productCode === id);
     if (!source) throw new NotFoundException('Номенклатура не найдена');
     const usedIds = new Set((await this.allProductProcesses()).map((product) => product.id));
@@ -798,14 +952,19 @@ export class MesService {
     let equipment = '';
     let productCode = '';
     let processId = '';
+    const copyPrefix = '\u041a\u041e\u041f\u0418\u042f';
     do {
+      const safePrefix = copyIndex === 1 ? copyPrefix : `${copyPrefix} ${copyIndex}`;
       const prefix = copyIndex === 1 ? 'КОПИЯ' : `КОПИЯ ${copyIndex}`;
-      equipment = `${prefix} ${source.equipment}`.trim();
-      productCode = `${prefix} ${source.productCode}`.trim();
+      void prefix;
+      equipment = `${safePrefix} ${source.equipment}`.trim();
+      productCode = `${safePrefix} ${source.productCode}`.trim();
       processId = this.slugify(`${equipment}-${productCode}`);
       copyIndex += 1;
     } while (usedIds.has(processId) || this.productMatchKeys(productCode).some((key) => usedProductKeys.has(key)));
 
+    const manualCategory = '\u0420\u0443\u0447\u043d\u0430\u044f \u043d\u043e\u043c\u0435\u043d\u043a\u043b\u0430\u0442\u0443\u0440\u0430';
+    const copiedNote = `\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u043e \u0438\u0437 ${source.equipment} (${source.productCode}).`;
     const process = this.normalizeManualProcess({
       id: processId,
       equipment,
@@ -814,20 +973,9 @@ export class MesService {
       notes: [`Скопировано из ${source.equipment} (${source.productCode}).`, ...(source.notes || [])],
       summary: source.summary || {},
       processSteps: source.processSteps.map((step) => ({ ...step })),
+      ...{ category: source.category || manualCategory, notes: [copiedNote, ...(source.notes || [])] },
     });
-    await this.prisma.nomenclatureProcessRecord.create({
-      data: {
-        id: process.id,
-        equipment: process.equipment,
-        productCode: process.productCode,
-        category: process.category,
-        operationsCount: process.processSteps.length,
-        totalNormHours: process.totalNormHours,
-        confidence: process.confidence,
-        data: process as unknown as Prisma.InputJsonValue,
-      },
-    });
-    return process;
+    return this.persistNomenclatureProcessVersion({ ...process, activate: true }, actor, true);
   }
 
   async deleteNomenclatureProcess(id: string) {
@@ -1943,6 +2091,10 @@ export class MesService {
       productId: record.productId,
       productCode: record.productCode,
       productName: record.productName,
+      processVersionId: record.processVersionId ?? null,
+      processVersionNo: record.processVersionNo ?? null,
+      processSourceId: record.processSourceId ?? null,
+      processSnapshotAt: record.processSnapshotAt ? record.processSnapshotAt.toISOString() : null,
       quantity: record.quantity,
       totalQuantity: record.totalQuantity ?? record.quantity,
       launchedQuantity: record.launchedQuantity ?? (units.length || record.quantity),
@@ -2057,6 +2209,10 @@ export class MesService {
       productId: run.productId,
       productCode: run.productCode,
       productName: run.productName,
+      processVersionId: run.processVersionId || null,
+      processVersionNo: run.processVersionNo ?? null,
+      processSourceId: run.processSourceId || null,
+      processSnapshotAt: run.processSnapshotAt ? new Date(run.processSnapshotAt) : null,
       quantity: run.quantity,
       totalQuantity: run.totalQuantity ?? run.quantity,
       launchedQuantity: run.launchedQuantity ?? run.units?.length ?? run.quantity,
@@ -2134,6 +2290,8 @@ export class MesService {
       productId?: string | null;
       productCode?: string | null;
       productName?: string | null;
+      processVersionId?: string | null;
+      processVersionNo?: number | null;
       quantity?: number | null;
       status?: string | null;
       priority?: string | null;
@@ -2153,6 +2311,8 @@ export class MesService {
         productId: record.productId || run.productId,
         productCode: record.productCode || run.productCode,
         productName: record.productName || run.productName,
+        processVersionId: record.processVersionId ?? run.processVersionId ?? null,
+        processVersionNo: record.processVersionNo ?? run.processVersionNo ?? null,
         quantity: record.quantity ?? run.quantity,
         status: this.normalizeProductionRunStatus(record.status || run.status),
         priority: this.normalizeProductionPriority(record.priority || run.priority),
@@ -2170,6 +2330,8 @@ export class MesService {
         productId: run.productId,
         productCode: run.productCode,
         productName: run.productName,
+        processVersionId: run.processVersionId || null,
+        processVersionNo: run.processVersionNo ?? null,
         quantity: run.quantity,
         status: run.status,
         priority: this.normalizeProductionPriority(run.priority),
@@ -2580,11 +2742,320 @@ export class MesService {
     return run;
   }
 
+  private async findNomenclatureProcessRecord(id: string, client: Prisma.TransactionClient | PrismaService = this.prisma) {
+    return client.nomenclatureProcessRecord.findFirst({
+      where: { OR: [{ id }, { productCode: id }] },
+      include: { versions: { orderBy: [{ versionNo: 'desc' }, { createdAt: 'desc' }] } },
+    });
+  }
+
+  private findImportedProductProcess(id: string): ProductProcess | undefined {
+    return (productsProcesses.products as ProductProcess[]).find((product) => product.id === id || product.productCode === id);
+  }
+
+  private findImportedProductProcessByCode(productCode: string): ProductProcess | undefined {
+    const requested = new Set(this.productMatchKeys(productCode));
+    return (productsProcesses.products as ProductProcess[]).find((product) =>
+      this.productMatchKeys(product.productCode).some((key) => requested.has(key)),
+    );
+  }
+
+  private importedVersionId(product: ProductProcess) {
+    return `${product.id}:imported`;
+  }
+
+  private isImportedVersionId(product: ProductProcess, versionId: string) {
+    return versionId === this.importedVersionId(product) || versionId === 'imported' || versionId === 'v1' || versionId === '1';
+  }
+
+  private importedProductProcess(product: ProductProcess): ProductProcess {
+    return {
+      ...product,
+      sourceType: 'imported',
+      activeVersionId: this.importedVersionId(product),
+      versionId: this.importedVersionId(product),
+      versionNo: 1,
+      versionStatus: 'active',
+      versionComment: 'НСИ baseline',
+      versionCreatedAt: product.extractedAt || productsProcesses.extractedAt,
+      versionActivatedAt: product.extractedAt || productsProcesses.extractedAt,
+    };
+  }
+
+  private importedNomenclatureVersionSummary(product: ProductProcess): NomenclatureProcessVersionSummary {
+    const createdAt = product.extractedAt || productsProcesses.extractedAt || new Date().toISOString();
+    return {
+      id: this.importedVersionId(product),
+      processId: product.id,
+      versionNo: 1,
+      status: 'active',
+      equipment: product.equipment,
+      productCode: product.productCode,
+      category: product.category,
+      operationsCount: product.processSteps.length,
+      totalNormHours: product.totalNormHours,
+      confidence: product.confidence,
+      comment: 'НСИ baseline',
+      createdBy: null,
+      activatedBy: null,
+      activatedAt: createdAt,
+      createdAt,
+      updatedAt: createdAt,
+    };
+  }
+
+  private nomenclatureVersionId(processId: string, versionNo: number) {
+    return `${processId}-v${versionNo}`;
+  }
+
+  private nomenclatureVersionStatus(value: unknown): NomenclatureVersionStatus {
+    return value === 'active' || value === 'archived' || value === 'draft' ? value : 'draft';
+  }
+
+  private nomenclatureVersionSummary(version: any): NomenclatureProcessVersionSummary {
+    return {
+      id: version.id,
+      processId: version.processId,
+      versionNo: Number(version.versionNo || 1),
+      status: this.nomenclatureVersionStatus(version.status),
+      equipment: version.equipment,
+      productCode: version.productCode,
+      category: version.category,
+      operationsCount: Number(version.operationsCount || 0),
+      totalNormHours: Number(version.totalNormHours || 0),
+      confidence: version.confidence || 'manual',
+      comment: version.comment || null,
+      createdBy: version.createdBy || null,
+      activatedBy: version.activatedBy || null,
+      activatedAt: version.activatedAt ? version.activatedAt.toISOString() : null,
+      createdAt: version.createdAt ? version.createdAt.toISOString() : new Date().toISOString(),
+      updatedAt: version.updatedAt ? version.updatedAt.toISOString() : new Date().toISOString(),
+    };
+  }
+
+  private activeVersionForRecord(record: any) {
+    if (!record) return null;
+    return record.versions.find((version: any) => version.id === record.activeVersionId)
+      || record.versions.find((version: any) => version.status === 'active')
+      || null;
+  }
+
+  private findVersionInRecord(record: any, versionId: string) {
+    const version = record.versions.find((item: any) => item.id === versionId || String(item.versionNo) === versionId || `v${item.versionNo}` === versionId);
+    if (!version) throw new NotFoundException('Версия техпроцесса не найдена');
+    return version;
+  }
+
+  private processWithVersionMetadata(process: ProductProcess, version: { versionId: string; versionNo: number; status: NomenclatureVersionStatus; comment?: string | null; createdBy?: string | null; activatedBy?: string | null; activatedAt?: string | null; createdAt?: string | null }): ProductProcess {
+    return {
+      ...process,
+      activeVersionId: version.status === 'active' ? version.versionId : process.activeVersionId || null,
+      versionId: version.versionId,
+      versionNo: version.versionNo,
+      versionStatus: version.status,
+      versionComment: version.comment || null,
+      versionCreatedBy: version.createdBy || null,
+      versionActivatedBy: version.activatedBy || null,
+      versionCreatedAt: version.createdAt || process.extractedAt || null,
+      versionActivatedAt: version.activatedAt || null,
+      sourceType: 'manual',
+    };
+  }
+
+  private productProcessFromVersion(record: any, version: any | null): ProductProcess {
+    if (!version) {
+      const legacy = record.data as unknown as ProductProcess;
+      return { ...legacy, sourceType: 'manual', activeVersionId: record.activeVersionId || null };
+    }
+    const process = version.data as unknown as ProductProcess;
+    return {
+      ...process,
+      id: record.id,
+      equipment: version.equipment || process.equipment,
+      productCode: version.productCode || process.productCode,
+      category: version.category || process.category,
+      totalNormHours: Number(version.totalNormHours || process.totalNormHours || 0),
+      confidence: version.confidence || process.confidence || 'manual',
+      sourceType: 'manual',
+      activeVersionId: record.activeVersionId || null,
+      versionId: version.id,
+      versionNo: Number(version.versionNo || 1),
+      versionStatus: this.nomenclatureVersionStatus(version.status),
+      versionComment: version.comment || null,
+      versionCreatedBy: version.createdBy || null,
+      versionActivatedBy: version.activatedBy || null,
+      versionCreatedAt: version.createdAt ? version.createdAt.toISOString() : null,
+      versionActivatedAt: version.activatedAt ? version.activatedAt.toISOString() : null,
+    };
+  }
+
+  private async createNomenclatureVersionRow(
+    processId: string,
+    process: ProductProcess,
+    versionNo: number,
+    status: NomenclatureVersionStatus,
+    actor: string | undefined,
+    comment: string | null,
+    client: Prisma.TransactionClient,
+  ) {
+    const now = new Date();
+    const versionId = this.nomenclatureVersionId(processId, versionNo);
+    const versionedProcess = this.processWithVersionMetadata(process, {
+      versionId,
+      versionNo,
+      status,
+      comment,
+      createdBy: actor || null,
+      activatedBy: status === 'active' ? actor || null : null,
+      activatedAt: status === 'active' ? now.toISOString() : null,
+      createdAt: now.toISOString(),
+    });
+    await client.nomenclatureProcessVersion.create({
+      data: {
+        id: versionId,
+        processId,
+        versionNo,
+        status,
+        equipment: versionedProcess.equipment,
+        productCode: versionedProcess.productCode,
+        category: versionedProcess.category,
+        operationsCount: versionedProcess.processSteps.length,
+        totalNormHours: versionedProcess.totalNormHours,
+        confidence: versionedProcess.confidence,
+        comment,
+        createdBy: actor || null,
+        activatedBy: status === 'active' ? actor || null : null,
+        activatedAt: status === 'active' ? now : null,
+        data: versionedProcess as unknown as Prisma.InputJsonValue,
+      },
+    });
+    return versionedProcess;
+  }
+
+  private async activateNomenclatureVersion(processId: string, versionId: string, actor: string | undefined, client: Prisma.TransactionClient) {
+    const version = await client.nomenclatureProcessVersion.findUnique({ where: { id: versionId } });
+    if (!version || version.processId !== processId) throw new NotFoundException('Версия техпроцесса не найдена');
+    const now = new Date();
+    const sourceProcess = version.data as unknown as ProductProcess;
+    const activeProcess = this.processWithVersionMetadata(sourceProcess, {
+      versionId: version.id,
+      versionNo: version.versionNo,
+      status: 'active',
+      comment: version.comment || null,
+      createdBy: version.createdBy || null,
+      activatedBy: actor || null,
+      activatedAt: now.toISOString(),
+      createdAt: version.createdAt ? version.createdAt.toISOString() : null,
+    });
+    await client.nomenclatureProcessVersion.updateMany({
+      where: { processId, status: 'active', NOT: { id: version.id } },
+      data: { status: 'archived' },
+    });
+    await client.nomenclatureProcessVersion.update({
+      where: { id: version.id },
+      data: {
+        status: 'active',
+        activatedBy: actor || null,
+        activatedAt: now,
+        equipment: activeProcess.equipment,
+        productCode: activeProcess.productCode,
+        category: activeProcess.category,
+        operationsCount: activeProcess.processSteps.length,
+        totalNormHours: activeProcess.totalNormHours,
+        confidence: activeProcess.confidence,
+        data: activeProcess as unknown as Prisma.InputJsonValue,
+      },
+    });
+    await client.nomenclatureProcessRecord.update({
+      where: { id: processId },
+      data: {
+        activeVersionId: version.id,
+        equipment: activeProcess.equipment,
+        productCode: activeProcess.productCode,
+        category: activeProcess.category,
+        operationsCount: activeProcess.processSteps.length,
+        totalNormHours: activeProcess.totalNormHours,
+        confidence: activeProcess.confidence,
+        data: activeProcess as unknown as Prisma.InputJsonValue,
+      },
+    });
+    return activeProcess;
+  }
+
+  private async persistNomenclatureProcessVersion(body: ManualProcessInput, actor: string | undefined, defaultActivate: boolean, requireProductCodeConfirmation = false) {
+    let process = this.normalizeManualProcess(body);
+    const comment = String(body.versionComment || body.comment || '').trim() || null;
+    const confirmedProductCodeReplace = body.replaceExistingProductCode === true;
+    return this.withSerializableRetry(async (tx) => {
+      let existing = await tx.nomenclatureProcessRecord.findUnique({
+        where: { id: process.id },
+        include: { versions: { orderBy: [{ versionNo: 'desc' }, { createdAt: 'desc' }] } },
+      });
+      if (requireProductCodeConfirmation) {
+        const codeKeys = this.productMatchKeys(process.productCode);
+        const manualRecords = codeKeys.length
+          ? await tx.nomenclatureProcessRecord.findMany({
+              include: { versions: { orderBy: [{ versionNo: 'desc' }, { createdAt: 'desc' }] } },
+              orderBy: { updatedAt: 'desc' },
+            })
+          : [];
+        const recordWithSameCode = manualRecords.find((record: any) => this.productMatchKeys(record.productCode).some((key) => codeKeys.includes(key)));
+        const importedWithSameCode = recordWithSameCode ? undefined : this.findImportedProductProcessByCode(process.productCode);
+        const matchingProcess = recordWithSameCode || importedWithSameCode;
+        if (matchingProcess) {
+          if (!confirmedProductCodeReplace) {
+            throw new ConflictException({
+              code: 'NOMENCLATURE_PRODUCT_CODE_EXISTS',
+              message: `Код номенклатуры ${process.productCode} уже используется. Подтвердите замену, чтобы сохранить техпроцесс как новую версию существующей номенклатуры.`,
+              existing: {
+                id: matchingProcess.id,
+                equipment: matchingProcess.equipment,
+                productCode: matchingProcess.productCode,
+                sourceType: recordWithSameCode ? 'manual' : 'imported',
+              },
+            });
+          }
+          process = { ...process, id: matchingProcess.id };
+          existing = recordWithSameCode
+            ? recordWithSameCode
+            : await tx.nomenclatureProcessRecord.findUnique({
+                where: { id: process.id },
+                include: { versions: { orderBy: [{ versionNo: 'desc' }, { createdAt: 'desc' }] } },
+              });
+        }
+      }
+      const forceActive = !existing || !existing.activeVersionId;
+      const shouldActivate = forceActive || defaultActivate || body.activate === true;
+      const nextNo = Math.max(existing?.versionCounter || 0, ...(existing?.versions || []).map((version: any) => Number(version.versionNo || 0))) + 1;
+      if (!existing) {
+        await tx.nomenclatureProcessRecord.create({
+          data: {
+            id: process.id,
+            equipment: process.equipment,
+            productCode: process.productCode,
+            category: process.category,
+            operationsCount: process.processSteps.length,
+            totalNormHours: process.totalNormHours,
+            confidence: process.confidence,
+            versionCounter: nextNo,
+            activeVersionId: shouldActivate ? this.nomenclatureVersionId(process.id, nextNo) : null,
+            data: process as unknown as Prisma.InputJsonValue,
+          },
+        });
+      } else {
+        await tx.nomenclatureProcessRecord.update({ where: { id: process.id }, data: { versionCounter: nextNo } });
+      }
+      const versioned = await this.createNomenclatureVersionRow(process.id, process, nextNo, shouldActivate ? 'active' : 'draft', actor, comment, tx);
+      if (shouldActivate) return this.activateNomenclatureVersion(process.id, versioned.versionId!, actor, tx);
+      return versioned;
+    });
+  }
+
   private async allProductProcesses(): Promise<ProductProcess[]> {
-    const manual = await this.prisma.nomenclatureProcessRecord.findMany({ orderBy: { updatedAt: 'desc' } });
-    const manualProcesses = manual.map((record) => ({ ...(record.data as unknown as ProductProcess), sourceType: 'manual' }));
+    const manual = await this.prisma.nomenclatureProcessRecord.findMany({ include: { versions: { orderBy: [{ versionNo: 'desc' }, { createdAt: 'desc' }] } }, orderBy: { updatedAt: 'desc' } });
+    const manualProcesses = manual.map((record) => this.productProcessFromVersion(record, this.activeVersionForRecord(record)));
     const unique = new Map<string, ProductProcess>();
-    for (const product of [...manualProcesses, ...(productsProcesses.products as ProductProcess[]).map((product) => ({ ...product, sourceType: 'imported' }))]) {
+    for (const product of [...manualProcesses, ...(productsProcesses.products as ProductProcess[]).map((product) => this.importedProductProcess(product))]) {
       const key = this.productMatchKeys(product.productCode)[0] || this.productMatchKeys(product.equipment)[0] || product.id;
       if (!unique.has(key)) unique.set(key, product);
     }
@@ -2856,6 +3327,10 @@ export class MesService {
       productId: product.id,
       productCode: product.productCode,
       productName: product.equipment,
+      processVersionId: product.versionId || null,
+      processVersionNo: product.versionNo || null,
+      processSourceId: product.id,
+      processSnapshotAt: now,
       quantity,
       totalQuantity: quantity,
       launchedQuantity: quantity,
@@ -3128,6 +3603,7 @@ export class MesService {
       status: op.status,
       canStart: dependency.canStart,
       blockedBy: dependency.blockedBy,
+      blockedByOperations: this.productionBlockedByOperations(unit ? { ...run, operations: unit.operations } : run, dependency.blockedBy),
       dependencyStatus: dependency.dependencyStatus,
       lockedBy: op.lockedBy || null,
       lockedAt: op.lockedAt || null,
@@ -3411,6 +3887,13 @@ export class MesService {
     const blockedBy = previous.filter((code) => !run.operations.some((item) => item.operationId === code && item.status === 'done'));
     if (mustWaitDispatch && !blockedBy.includes(dispatch!.operationId)) blockedBy.unshift(dispatch!.operationId);
     return { canStart: blockedBy.length === 0, blockedBy, dependencyStatus: blockedBy.length ? 'blocked' as ProductionDependencyStatus : 'available' as ProductionDependencyStatus };
+  }
+
+  private productionBlockedByOperations(run: ProductionRun, blockedBy: string[] = []) {
+    return blockedBy
+      .map((code) => run.operations.find((item) => item.operationId === code))
+      .filter((op): op is ProductionOperation => Boolean(op))
+      .map((op) => ({ operationId: op.operationId, name: op.name, section: op.section }));
   }
 
   private refreshProductionDependencies(run: ProductionRun) {

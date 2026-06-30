@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, ParseIntPipe, Post, Query, Req, Res, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, Query, Req, Res, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import { Public, Roles } from './auth.decorators';
@@ -403,6 +403,46 @@ export class AppController {
     return this.nomenclatureService.nomenclatureCategories();
   }
 
+  @Get('nomenclature/:id/versions')
+  nomenclatureProcessVersions(@Param('id') id: string) {
+    return this.nomenclatureService.nomenclatureProcessVersions(id);
+  }
+
+  @Get('nomenclature/:id/versions/:versionId')
+  nomenclatureProcessVersion(@Param('id') id: string, @Param('versionId') versionId: string) {
+    return this.nomenclatureService.nomenclatureProcessVersion(id, versionId);
+  }
+
+  @Roles('technologist', 'dispatcher', 'admin')
+  @Post('nomenclature/:id/versions')
+  createNomenclatureProcessVersion(@Req() req: AuthRequest, @Param('id') id: string, @Body() body: SaveNomenclatureProcessBody) {
+    return this.nomenclatureService.createNomenclatureProcessVersion(id, body, req.user?.displayName || req.user?.login);
+  }
+
+  @Roles('technologist', 'dispatcher', 'admin')
+  @Patch('nomenclature/:id/versions/:versionId')
+  updateNomenclatureProcessVersion(@Req() req: AuthRequest, @Param('id') id: string, @Param('versionId') versionId: string, @Body() body: SaveNomenclatureProcessBody) {
+    return this.nomenclatureService.updateNomenclatureProcessVersion(id, versionId, body, req.user?.displayName || req.user?.login);
+  }
+
+  @Roles('technologist', 'dispatcher', 'admin')
+  @Post('nomenclature/:id/versions/:versionId/activate')
+  activateNomenclatureProcessVersion(@Req() req: AuthRequest, @Param('id') id: string, @Param('versionId') versionId: string) {
+    return this.nomenclatureService.activateNomenclatureProcessVersion(id, versionId, req.user?.displayName || req.user?.login);
+  }
+
+  @Roles('technologist', 'dispatcher', 'admin')
+  @Post('nomenclature/:id/versions/:versionId/copy')
+  copyNomenclatureProcessVersion(@Req() req: AuthRequest, @Param('id') id: string, @Param('versionId') versionId: string) {
+    return this.nomenclatureService.copyNomenclatureProcessVersion(id, versionId, req.user?.displayName || req.user?.login);
+  }
+
+  @Roles('technologist', 'dispatcher', 'admin')
+  @Delete('nomenclature/:id/versions/:versionId')
+  deleteNomenclatureProcessVersion(@Param('id') id: string, @Param('versionId') versionId: string) {
+    return this.nomenclatureService.deleteNomenclatureProcessVersion(id, versionId);
+  }
+
   @Get('nomenclature/:id/process')
   nomenclatureProcess(@Param('id') id: string) {
     return this.nomenclatureService.nomenclatureProcess(id);
@@ -410,14 +450,14 @@ export class AppController {
 
   @Roles('technologist', 'dispatcher', 'admin')
   @Post('nomenclature/processes')
-  saveNomenclatureProcess(@Body() body: SaveNomenclatureProcessBody) {
-    return this.nomenclatureService.saveNomenclatureProcess(body);
+  saveNomenclatureProcess(@Req() req: AuthRequest, @Body() body: SaveNomenclatureProcessBody) {
+    return this.nomenclatureService.saveNomenclatureProcess(body, req.user?.displayName || req.user?.login);
   }
 
   @Roles('technologist', 'dispatcher', 'admin')
   @Post('nomenclature/:id/process/copy')
-  copyNomenclatureProcess(@Param('id') id: string) {
-    return this.nomenclatureService.copyNomenclatureProcess(id);
+  copyNomenclatureProcess(@Req() req: AuthRequest, @Param('id') id: string) {
+    return this.nomenclatureService.copyNomenclatureProcess(id, req.user?.displayName || req.user?.login);
   }
 
   @Roles('technologist', 'dispatcher', 'admin')
