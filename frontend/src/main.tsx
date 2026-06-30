@@ -894,6 +894,8 @@ function ProductionPlan({ events = [], referenceSections = [] }: { events?: Term
   const [launch, setLaunch] = useState<ProductionLaunch | null>(null);
   const [selectedPlanOrderIds, setSelectedPlanOrderIds] = useState<Set<number>>(() => new Set());
   const [error, setError] = useState('');
+  const [launching, setLaunching] = useState(false);
+  const [batchLaunching, setBatchLaunching] = useState(false);
   async function loadPlan() { setError(''); try { setData(await getJson<ProductionPlanData>(`${API}/production/plan`)); } catch (e) { setError(e instanceof Error ? e.message : 'Ошибка плана производства'); } }
   useEffect(() => {
     loadPlan();
@@ -938,21 +940,32 @@ function ProductionPlan({ events = [], referenceSections = [] }: { events?: Term
   const hotLoads = [...loads].filter(l => l.remainingHours > 0).sort((a, b) => (b.loadPct - a.loadPct) || (b.remainingHours - a.remainingHours)).slice(0, 6);
   const batchCount = Array.from(new Set(runs.map(run => run.batchNumber || run.id))).length;
   async function submitLaunch(e: React.FormEvent) {
-    e.preventDefault(); if (!launch) return;
-    const res = await fetch(`${API}/production/launch`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(launch) });
-    if (!res.ok) return alert(apiErrorMessage(await res.json(), 'Не удалось запустить изделия'));
-    setLaunch(null); await loadPlan();
+    e.preventDefault(); if (!launch || launching) return;
+    setLaunching(true);
+    try {
+      const res = await fetch(`${API}/production/launch`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(launch) });
+      if (!res.ok) return alert(apiErrorMessage(await res.json(), 'Не удалось запустить изделия'));
+      setLaunch(null); await loadPlan();
+    } finally {
+      setLaunching(false);
+    }
   }
   async function launchSelectedBatch() {
+    if (batchLaunching) return;
     const selectedOrders = orders.filter(order => selectedPlanOrderIds.has(order.id) && order.availableQuantity > 0);
     if (!selectedOrders.length) return;
     const selectedQuantity = selectedOrders.reduce((sum, order) => sum + order.availableQuantity, 0);
     const products = Array.from(new Set(selectedOrders.map(order => order.productCode))).length;
     if (!window.confirm(`Запустить партию: ${selectedOrders.length} заказов, ${products} номенклатур, ${selectedQuantity} шт.?`)) return;
-    const res = await fetch(`${API}/production/batches`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ priority:'normal', operator:'Диспетчер', comment:'Партия из множественного выбора', items:selectedOrders.map(order => ({ orderNumber:order.orderNumber, productId:order.productId, productCode:order.productCode, productName:order.productName, quantity:order.availableQuantity })) }) });
-    if (!res.ok) return alert(apiErrorMessage(await res.json(), 'Не удалось запустить партию'));
-    setSelectedPlanOrderIds(new Set());
-    await loadPlan();
+    setBatchLaunching(true);
+    try {
+      const res = await fetch(`${API}/production/batches`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ priority:'normal', operator:'Диспетчер', comment:'Партия из множественного выбора', items:selectedOrders.map(order => ({ orderNumber:order.orderNumber, productId:order.productId, productCode:order.productCode, productName:order.productName, quantity:order.availableQuantity })) }) });
+      if (!res.ok) return alert(apiErrorMessage(await res.json(), 'Не удалось запустить партию'));
+      setSelectedPlanOrderIds(new Set());
+      await loadPlan();
+    } finally {
+      setBatchLaunching(false);
+    }
   }
   const startLaunch = (o: PlanOrder) => setLaunch({ orderNumber:o.orderNumber, productId:o.productId, productCode:o.productCode, productName:o.productName, max:o.availableQuantity, quantity:Math.min(5, Math.max(1, o.availableQuantity)), priority:'normal', comment:'' });
   return <>
@@ -983,13 +996,13 @@ function ProductionPlan({ events = [], referenceSections = [] }: { events?: Term
     <div className="dispatcher-layout">
       <section className="card launch-workbench">
         <div className="card-head"><div><h2>Партия из заказов</h2><p className="small">Сначала выберите заказ или номенклатурную группу, затем подтвердите количество и приоритет.</p></div></div>
-        <PlanOrdersTable orders={orders} selectedIds={selectedPlanOrderIds} onToggle={(order)=>setSelectedPlanOrderIds(prev => { const next = new Set(prev); if (next.has(order.id)) next.delete(order.id); else next.add(order.id); return next; })} onLaunch={startLaunch} onBatchLaunch={launchSelectedBatch} />
+        <PlanOrdersTable orders={orders} selectedIds={selectedPlanOrderIds} batchLaunching={batchLaunching} onToggle={(order)=>setSelectedPlanOrderIds(prev => { const next = new Set(prev); if (next.has(order.id)) next.delete(order.id); else next.add(order.id); return next; })} onLaunch={startLaunch} onBatchLaunch={launchSelectedBatch} />
         <div className="launch-groups"><h3>Группировка по номенклатуре</h3><PlanGroups groups={data?.groups || []} onLaunch={startLaunch} /></div>
       </section>
       <aside className="dispatch-side">
         <section className="card">
           <h2>Быстрая партия</h2>
-          {launch ? <LaunchForm launch={launch} setLaunch={setLaunch} submitLaunch={submitLaunch} /> : <Empty text="Выберите заказ или группу номенклатуры для партии" />}
+          {launch ? <LaunchForm launch={launch} launching={launching} setLaunch={setLaunch} submitLaunch={submitLaunch} /> : <Empty text="Выберите заказ или группу номенклатуры для партии" />}
         </section>
         <DispatchEventFeed events={events} />
         <details className="card collapsible-load-card">
@@ -1001,7 +1014,7 @@ function ProductionPlan({ events = [], referenceSections = [] }: { events?: Term
   </>;
 }
 
-function LaunchForm({ launch, setLaunch, submitLaunch }: { launch: ProductionLaunch; setLaunch: (launch: ProductionLaunch | null) => void; submitLaunch: (e: React.FormEvent) => void }) {
+function LaunchForm({ launch, launching, setLaunch, submitLaunch }: { launch: ProductionLaunch; launching: boolean; setLaunch: (launch: ProductionLaunch | null) => void; submitLaunch: (e: React.FormEvent) => void }) {
   return <form className="launch-form" onSubmit={submitLaunch}>
     <div className="launch-summary">
       <span>Итог партии</span>
@@ -1013,7 +1026,7 @@ function LaunchForm({ launch, setLaunch, submitLaunch }: { launch: ProductionLau
     <label><span>Количество</span><input name="launch-quantity" type="number" min="1" max={launch.max} value={launch.quantity} onChange={e=>setLaunch({...launch, quantity:Math.min(launch.max, Math.max(1, Number(e.target.value)||1))})} /></label>
     <label><span>Приоритет</span><select name="launch-priority" value={launch.priority} onChange={e=>setLaunch({...launch, priority:e.target.value as Priority})}><option value="high">Высокий</option><option value="normal">Обычный</option><option value="low">Низкий</option></select></label>
     <label><span>Комментарий</span><input name="launch-comment" value={launch.comment} onChange={e=>setLaunch({...launch, comment:e.target.value})} placeholder="Исполнитель, смена или причина партии" /></label>
-    <div className="launch-actions"><button disabled={!launch.max}>Запустить {launch.quantity} шт.</button><button type="button" className="secondary" onClick={()=>setLaunch(null)}>Отмена</button></div>
+    <div className="launch-actions"><button disabled={!launch.max || launching}>{launching ? 'Загрузка...' : `Запустить ${launch.quantity} шт.`}</button><button type="button" className="secondary" disabled={launching} onClick={()=>setLaunch(null)}>Отмена</button></div>
     <p className="small">Остаток по заказу: {launch.max} шт.</p>
   </form>;
 }
@@ -1039,12 +1052,12 @@ function DispatchLane({ title, tone, items, empty, onReleased }: { title: string
   return <section className={`card dispatch-lane ${tone}`}><h2>{title}</h2>{items.length ? <div className="dispatch-lane-list">{items.map(({run, unit}) => { const current = currentUnitOperation(unit); return <div className="dispatch-task" key={`${title}-${unit.unitId}`}><div><b>{displayRunTitle(run)}</b><span>{unit.unitNo}/{run.launchedQuantity || run.quantity} · {run.productName}</span></div><p>{current?.section || 'участок не определен'} · {displayOperationTitle(current)}</p><div className="task-meta"><span className={`status ${unit.status}`}>{runStatusLabel(unit.status)}</span><small>{unit.progress}% · готово к старту {unit.nextReadyOperations?.length || 0}</small></div>{onReleased && <button disabled={!unit.canReleaseNext || unit.dispatchStatus === 'done'} onClick={()=>release(run, unit)}>Передать</button>}</div>; })}</div> : <Empty text={empty} />}</section>;
 }
 
-function PlanOrdersTable({ orders, selectedIds, onToggle, onLaunch, onBatchLaunch }: { orders: PlanOrder[]; selectedIds: Set<number>; onToggle: (order: PlanOrder) => void; onLaunch: (order: PlanOrder) => void; onBatchLaunch: () => void }) {
+function PlanOrdersTable({ orders, selectedIds, batchLaunching, onToggle, onLaunch, onBatchLaunch }: { orders: PlanOrder[]; selectedIds: Set<number>; batchLaunching: boolean; onToggle: (order: PlanOrder) => void; onLaunch: (order: PlanOrder) => void; onBatchLaunch: () => void }) {
   if (!orders.length) return <Empty text="Заказы в плане не найдены" />;
   const selectedAvailable = orders.filter(order => selectedIds.has(order.id) && order.availableQuantity > 0);
   const selectedQuantity = selectedAvailable.reduce((sum, order) => sum + order.availableQuantity, 0);
   const selectedProducts = Array.from(new Set(selectedAvailable.map(order => order.productCode))).length;
-  return <><div className="batch-toolbar"><div><b>Выбрано: {selectedAvailable.length}</b><span>{selectedQuantity} шт. · {selectedProducts} номенклатур</span></div><button disabled={!selectedAvailable.length} onClick={onBatchLaunch}>Запустить партию</button></div><table><thead><tr><th>Выбор</th><th>Заказ</th><th>Номенклатура</th><th>Кол-во</th><th>КД / комментарий</th><th>Дата отгрузки</th><th>Готовность</th><th>Этапы</th><th>Действия</th></tr></thead><tbody>{orders.map(o=><tr key={o.id} className={selectedIds.has(o.id) ? 'selected-row' : ''}><td><input name={`plan-order-${o.id}`} type="checkbox" checked={selectedIds.has(o.id)} disabled={o.availableQuantity<=0} onChange={()=>onToggle(o)} /></td><td><b>{o.orderNumber}</b><div className="small">запущено {o.launchedQuantity}, готово {o.readyQuantity}</div></td><td>{o.productCode}<div className="small">{o.productName}</div></td><td>{o.quantity}<div className="small">доступно {o.availableQuantity}</div></td><td><b>{o.kd || 'КД не указана'}</b><div className="small">{o.comment || '—'}</div></td><td className={o.overdue?'text-danger':''}>{date(o.shipmentDate)}</td><td><b>{o.progress}%</b><div className="bar"><i style={{width:`${o.progress}%`}} /></div></td><td><div className="stage-line">{o.stages.map(s=><span key={`${o.id}-${s.operationCode}`} className={`status ${s.status}`}>{s.section}</span>)}</div></td><td><button disabled={o.availableQuantity<=0} onClick={()=>onLaunch(o)}>Запустить часть</button></td></tr>)}</tbody></table></>;
+  return <><div className="batch-toolbar"><div><b>Выбрано: {selectedAvailable.length}</b><span>{selectedQuantity} шт. · {selectedProducts} номенклатур</span></div><button disabled={!selectedAvailable.length || batchLaunching} onClick={onBatchLaunch}>{batchLaunching ? 'Загрузка...' : 'Запустить партию'}</button></div><table><thead><tr><th>Выбор</th><th>Заказ</th><th>Номенклатура</th><th>Кол-во</th><th>КД / комментарий</th><th>Дата отгрузки</th><th>Готовность</th><th>Этапы</th><th>Действия</th></tr></thead><tbody>{orders.map(o=><tr key={o.id} className={selectedIds.has(o.id) ? 'selected-row' : ''}><td><input name={`plan-order-${o.id}`} type="checkbox" checked={selectedIds.has(o.id)} disabled={o.availableQuantity<=0 || batchLaunching} onChange={()=>onToggle(o)} /></td><td><b>{o.orderNumber}</b><div className="small">запущено {o.launchedQuantity}, готово {o.readyQuantity}</div></td><td>{o.productCode}<div className="small">{o.productName}</div></td><td>{o.quantity}<div className="small">доступно {o.availableQuantity}</div></td><td><b>{o.kd || 'КД не указана'}</b><div className="small">{o.comment || '—'}</div></td><td className={o.overdue?'text-danger':''}>{date(o.shipmentDate)}</td><td><b>{o.progress}%</b><div className="bar"><i style={{width:`${o.progress}%`}} /></div></td><td><div className="stage-line">{o.stages.map(s=><span key={`${o.id}-${s.operationCode}`} className={`status ${s.status}`}>{s.section}</span>)}</div></td><td><button disabled={o.availableQuantity<=0 || batchLaunching} onClick={()=>onLaunch(o)}>Запустить часть</button></td></tr>)}</tbody></table></>;
 }
 
 function PlanGroups({ groups, onLaunch }: { groups: PlanGroup[]; onLaunch: (order: PlanOrder) => void }) {
@@ -1646,6 +1659,9 @@ function ProductionRuns() {
   const [selected, setSelected] = useState<ProductionRun | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [creatingRun, setCreatingRun] = useState(false);
+  const [startingRun, setStartingRun] = useState(false);
+  const [deletingRun, setDeletingRun] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   async function loadProduction(nextSelectedId = selectedId, silent = false) {
     if (!silent) setLoading(true); setError('');
@@ -1663,24 +1679,50 @@ function ProductionRuns() {
     return () => window.clearInterval(timer);
   }, [selectedId]);
   async function createRun(startNow = false) {
-    const res = await fetch(`${API}/production/runs`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orderNumber: orderNumber.trim(), productId, quantity, operator, priority }) });
-    if (!res.ok) return alert((await res.json()).message || 'Не удалось создать партию');
-    const run: ProductionRun = await res.json();
-    if (startNow) await fetch(`${API}/production/runs/${encodeURIComponent(run.id)}/start`, { method: 'POST' });
-    await loadProduction(run.id);
+    if (creatingRun) return;
+    setCreatingRun(true);
+    try {
+      const res = await fetch(`${API}/production/runs`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orderNumber: orderNumber.trim(), productId, quantity, operator, priority }) });
+      if (!res.ok) return alert((await res.json()).message || 'Не удалось создать партию');
+      const run: ProductionRun = await res.json();
+      if (startNow) await fetch(`${API}/production/runs/${encodeURIComponent(run.id)}/start`, { method: 'POST' });
+      await loadProduction(run.id);
+    } finally {
+      setCreatingRun(false);
+    }
   }
-  async function openRun(id: string) { setSelectedId(id); setSelected(await getJson<ProductionRun>(`${API}/production/runs/${encodeURIComponent(id)}`)); }
-  async function startRun() { if (!selected) return; const res = await fetch(`${API}/production/runs/${encodeURIComponent(selected.id)}/start`, { method: 'POST' }); if (!res.ok) return alert((await res.json()).message || 'Не удалось запустить производство'); await loadProduction(selected.id); }
-  async function deleteRun() { if (!selected) return; const res = await fetch(`${API}/production/runs/${encodeURIComponent(selected.id)}`, { method: 'DELETE' }); if (!res.ok) { setError(apiErrorMessage(await res.json(), 'Не удалось удалить партию')); return; } setConfirmDelete(false); await loadProduction(''); }
+  async function openRun(id: string) { if (creatingRun || startingRun || deletingRun) return; setSelectedId(id); setSelected(await getJson<ProductionRun>(`${API}/production/runs/${encodeURIComponent(id)}`)); }
+  async function startRun() {
+    if (!selected || startingRun) return;
+    setStartingRun(true);
+    try {
+      const res = await fetch(`${API}/production/runs/${encodeURIComponent(selected.id)}/start`, { method: 'POST' });
+      if (!res.ok) return alert((await res.json()).message || 'Не удалось запустить производство');
+      await loadProduction(selected.id);
+    } finally {
+      setStartingRun(false);
+    }
+  }
+  async function deleteRun() {
+    if (!selected || deletingRun) return;
+    setDeletingRun(true);
+    try {
+      const res = await fetch(`${API}/production/runs/${encodeURIComponent(selected.id)}`, { method: 'DELETE' });
+      if (!res.ok) { setError(apiErrorMessage(await res.json(), 'Не удалось удалить партию')); return; }
+      setConfirmDelete(false); await loadProduction('');
+    } finally {
+      setDeletingRun(false);
+    }
+  }
   const sections = selected ? Array.from(new Set(selected.operations.map(op => op.section))).sort() : [];
   return <>
     <PageTitle title="Запуск партии" subtitle="Производственный документ: номер партии, заказ, номенклатура из НСИ и количество единиц" />
     {error && <div className="alert">{error}</div>}{loading && <div className="loading">Загрузка партий...</div>}
-    <section className="card"><h2>Новая партия</h2><div className="filters production-create"><input value={orderNumber} maxLength={20} onChange={e=>setOrderNumber(e.target.value.slice(0, 20))} placeholder="Номер заказа, до 20 символов" /><select value={productId} onChange={e=>setProductId(e.target.value)}><option value="">Выберите номенклатуру</option>{items.map(item=><option key={item.id} value={item.id}>{item.equipment} · {item.productCode} · {item.operationsCount} операций</option>)}</select><input type="number" min="1" value={quantity} onChange={e=>setQuantity(Math.max(1, Number(e.target.value) || 1))} /><select value={priority} onChange={e=>setPriority(e.target.value as Priority)}><option value="high">Высокий приоритет</option><option value="normal">Обычный приоритет</option><option value="low">Низкий приоритет</option></select><input value={operator} onChange={e=>setOperator(e.target.value)} placeholder="Оператор / инициатор" /><button onClick={()=>createRun(true)} disabled={!productId}>Запустить партию</button></div><p className="small">Партия хранит номер заказа, выбранную номенклатуру, количество, инициатора и приоритет.</p></section>
-    <div className="grid2"><section className="card"><h2>Партии</h2>{runs.length ? <div className="run-list">{runs.map(run=><button key={run.id} className={`run-tile ${run.id===selectedId?'active':''}`} onClick={()=>openRun(run.id)}><div><b>{displayRunTitle(run)}</b><span className={`status ${run.status}`}>{runStatusLabel(run.status)}</span></div><strong>{run.productName} · {run.productCode}</strong><small>{run.quantity} шт · {run.progress}% · {priorityLabel(run.priority)}</small><div className="bar"><i style={{width:`${run.progress}%`}} /></div></button>)}</div> : <Empty text="Партий пока нет" />}</section><section className="card">{selected ? <><div className="card-head"><h2>{selected.productName} · {selected.productCode}</h2><div className="inline-actions">{selected.status !== 'done' && <button onClick={startRun}>Перевести в работу</button>}<button className="danger-btn" onClick={()=>setConfirmDelete(true)}>Удалить партию</button></div></div><div className="order-info"><div><span>Партия</span><b>{displayRunTitle(selected)}</b></div><div><span>Номер заказа</span><b>{displayOrderNumber(selected.orderNumber)}</b></div><div><span>Количество</span><b>{selected.quantity}</b></div><div><span>Статус</span><b>{runStatusLabel(selected.status)}</b></div><div><span>Приоритет</span><b>{priorityLabel(selected.priority)}</b></div><div><span>Готовность</span><b>{selected.progress}%</b></div><div><span>Норма</span><b>{hours(selected.normHours)}</b></div><div><span>Версия техпроцесса</span><b>{processVersionLabel(selected)}</b></div><div><span>Оператор</span><b>{selected.operator || selected.batchCreatedBy || 'не указан'}</b></div></div><details className="technical-details"><summary>Технические данные</summary><small>{selected.id}</small></details><div className="bar big"><i style={{width:`${selected.progress}%`}} /></div><CustomerProductionRunAccessPanel runId={selected.id} runTitle={displayRunTitle(selected)} /><div className="section-tags">{sections.map(section=><span key={section}>{section}</span>)}</div><p className="small">Текущая операция: {selected.activeOperation ? `${displayOperationTitle(selected.activeOperation)} · ${selected.activeOperation.section}` : 'нет'}</p></> : <Empty text="Выберите партию" />}</section></div>
+    <section className="card"><h2>Новая партия</h2><div className="filters production-create"><input value={orderNumber} maxLength={20} disabled={creatingRun} onChange={e=>setOrderNumber(e.target.value.slice(0, 20))} placeholder="Номер заказа, до 20 символов" /><select value={productId} disabled={creatingRun} onChange={e=>setProductId(e.target.value)}><option value="">Выберите номенклатуру</option>{items.map(item=><option key={item.id} value={item.id}>{item.equipment} · {item.productCode} · {item.operationsCount} операций</option>)}</select><input type="number" min="1" value={quantity} disabled={creatingRun} onChange={e=>setQuantity(Math.max(1, Number(e.target.value) || 1))} /><select value={priority} disabled={creatingRun} onChange={e=>setPriority(e.target.value as Priority)}><option value="high">Высокий приоритет</option><option value="normal">Обычный приоритет</option><option value="low">Низкий приоритет</option></select><input value={operator} disabled={creatingRun} onChange={e=>setOperator(e.target.value)} placeholder="Оператор / инициатор" /><button onClick={()=>createRun(true)} disabled={!productId || creatingRun}>{creatingRun ? 'Загрузка...' : 'Запустить партию'}</button></div><p className="small">Партия хранит номер заказа, выбранную номенклатуру, количество, инициатора и приоритет.</p></section>
+    <div className="grid2"><section className="card"><h2>Партии</h2>{runs.length ? <div className="run-list">{runs.map(run=><button key={run.id} className={`run-tile ${run.id===selectedId?'active':''}`} disabled={creatingRun || startingRun || deletingRun} onClick={()=>openRun(run.id)}><div><b>{displayRunTitle(run)}</b><span className={`status ${run.status}`}>{runStatusLabel(run.status)}</span></div><strong>{run.productName} · {run.productCode}</strong><small>{run.quantity} шт · {run.progress}% · {priorityLabel(run.priority)}</small><div className="bar"><i style={{width:`${run.progress}%`}} /></div></button>)}</div> : <Empty text="Партий пока нет" />}</section><section className="card">{selected ? <><div className="card-head"><h2>{selected.productName} · {selected.productCode}</h2><div className="inline-actions">{selected.status !== 'done' && <button onClick={startRun} disabled={startingRun || deletingRun}>{startingRun ? 'Загрузка...' : 'Перевести в работу'}</button>}<button className="danger-btn" disabled={startingRun || deletingRun} onClick={()=>setConfirmDelete(true)}>{deletingRun ? 'Загрузка...' : 'Удалить партию'}</button></div></div><div className="order-info"><div><span>Партия</span><b>{displayRunTitle(selected)}</b></div><div><span>Номер заказа</span><b>{displayOrderNumber(selected.orderNumber)}</b></div><div><span>Количество</span><b>{selected.quantity}</b></div><div><span>Статус</span><b>{runStatusLabel(selected.status)}</b></div><div><span>Приоритет</span><b>{priorityLabel(selected.priority)}</b></div><div><span>Готовность</span><b>{selected.progress}%</b></div><div><span>Норма</span><b>{hours(selected.normHours)}</b></div><div><span>Версия техпроцесса</span><b>{processVersionLabel(selected)}</b></div><div><span>Оператор</span><b>{selected.operator || selected.batchCreatedBy || 'не указан'}</b></div></div><details className="technical-details"><summary>Технические данные</summary><small>{selected.id}</small></details><div className="bar big"><i style={{width:`${selected.progress}%`}} /></div><CustomerProductionRunAccessPanel runId={selected.id} runTitle={displayRunTitle(selected)} /><div className="section-tags">{sections.map(section=><span key={section}>{section}</span>)}</div><p className="small">Текущая операция: {selected.activeOperation ? `${displayOperationTitle(selected.activeOperation)} · ${selected.activeOperation.section}` : 'нет'}</p></> : <Empty text="Выберите партию" />}</section></div>
     {selected && <OperationControlBoard run={selected} />}
     {selected?.units?.length ? <section className="card"><div className="card-head"><div><h2>Единицы партии</h2><p className="small">Табличный документ по единицам партии: текущая операция и диспетчеризация.</p></div></div><ProductionUnitsDocument run={selected} /></section> : null}
-    {selected && confirmDelete && <ConfirmModal title="Удалить партию?" body={`Партия ${displayRunTitle(selected)} будет удалена из производственной базы. Это действие нельзя отменить.`} confirmText="Удалить партию" onCancel={()=>setConfirmDelete(false)} onConfirm={deleteRun} />}
+    {selected && confirmDelete && <ConfirmModal title="Удалить партию?" body={`Партия ${displayRunTitle(selected)} будет удалена из производственной базы. Это действие нельзя отменить.`} confirmText={deletingRun ? 'Загрузка...' : 'Удалить партию'} onCancel={()=>setConfirmDelete(false)} onConfirm={deleteRun} />}
   </>;
 }
 

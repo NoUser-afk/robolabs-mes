@@ -446,3 +446,72 @@
   box-shadow: none;
   cursor: not-allowed;
 }
+
+.terminal-operation-flash-start,
+.terminal-operation-flash-pause,
+.terminal-operation-flash-complete {
+  position: relative;
+  overflow: hidden;
+  animation-duration: 2s;
+  animation-timing-function: cubic-bezier(.22,1,.36,1);
+  animation-fill-mode: both;
+}
+
+.terminal-operation-flash-start {
+  animation-name: terminalFlashStart;
+}
+
+.terminal-operation-flash-pause {
+  animation-name: terminalFlashPause;
+}
+
+.terminal-operation-flash-complete {
+  animation-name: terminalFlashComplete;
+}
+
+.terminal-operation-flash-start::after,
+.terminal-operation-flash-pause::after,
+.terminal-operation-flash-complete::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  animation: terminalFlashSweep 2s cubic-bezier(.22,1,.36,1) both;
+}
+
+.terminal-operation-flash-start::after {
+  background: linear-gradient(90deg, transparent, rgba(22,163,74,.22), transparent);
+}
+
+.terminal-operation-flash-pause::after {
+  background: linear-gradient(90deg, transparent, rgba(245,158,11,.28), transparent);
+}
+
+.terminal-operation-flash-complete::after {
+  background: linear-gradient(90deg, transparent, rgba(200,32,47,.22), transparent);
+}
+
+@keyframes terminalFlashStart {
+  0% { background-color: #ecfdf5; border-color: #16a34a; box-shadow: 0 0 0 0 rgba(22,163,74,.34); }
+  45% { background-color: #bbf7d0; border-color: #16a34a; box-shadow: 0 0 0 10px rgba(22,163,74,.2); }
+  100% { box-shadow: 0 0 0 0 rgba(22,163,74,0); }
+}
+
+@keyframes terminalFlashPause {
+  0% { background-color: #fffbeb; border-color: #f59e0b; box-shadow: 0 0 0 0 rgba(245,158,11,.34); }
+  45% { background-color: #fde68a; border-color: #f59e0b; box-shadow: 0 0 0 10px rgba(245,158,11,.2); }
+  100% { box-shadow: 0 0 0 0 rgba(245,158,11,0); }
+}
+
+@keyframes terminalFlashComplete {
+  0% { background-color: #fff1f2; border-color: #c8202f; box-shadow: 0 0 0 0 rgba(200,32,47,.34); }
+  45% { background-color: #fecaca; border-color: #c8202f; box-shadow: 0 0 0 10px rgba(200,32,47,.2); }
+  100% { box-shadow: 0 0 0 0 rgba(200,32,47,0); }
+}
+
+@keyframes terminalFlashSweep {
+  0% { opacity: 0; transform: translateX(-85%); }
+  20% { opacity: 1; }
+  100% { opacity: 0; transform: translateX(85%); }
+}

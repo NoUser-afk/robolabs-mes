@@ -10,7 +10,9 @@ const TERMINAL_HEARTBEAT_MS = 15000;
 const TERMINAL_CLIENT_ID_KEY = 'robopulse:terminal-client-id';
 const OPERATION_EXIT_MS = 950;
 const OPERATION_START_MS = 1100;
+const OPERATION_FLASH_MS = 2000;
 type ProductionSelection = { operationKey: string; operationPk: string; lockToken: string; lockExpiresAt?: string | null; lockVersion?: number };
+type TerminalOperationAction = 'start'|'pause'|'resume'|'complete';
 
 export function TerminalWorkspace({ user, onLogout, onChangeServer }: { user: AuthUser; onLogout: () => void; onChangeServer?: () => void }) {
   return <div className="terminal-shell"><header className="terminal-top"><div><div className="logo">Robo<span>Pulse</span><small>MES</small></div><p>{user.displayName} · {user.workCenterSection || 'участок не назначен'}</p></div><div className="terminal-top-actions">{onChangeServer && <button className="server-change-button" onClick={onChangeServer}>Сервер</button>}<button className="secondary" onClick={onLogout}>Выйти</button></div></header><main className="terminal-main"><WorkCenterTerminal sections={user.workCenterSection ? [user.workCenterSection] : []} people={[]} onDone={()=>{}} user={user} terminalMode /></main></div>;
@@ -18,6 +20,12 @@ export function TerminalWorkspace({ user, onLogout, onChangeServer }: { user: Au
 
 function terminalOperationKey(op?: Operation | null) { return op ? `${op.sourceType || 'order'}-${op.runId || ''}-${op.unitId || ''}-${op.operationId || op.id}` : ''; }
 function delay(ms: number) { return new Promise<void>((resolve) => window.setTimeout(resolve, ms)); }
+function terminalOperationFlashClass(action?: TerminalOperationAction) {
+  if (action === 'start' || action === 'resume') return 'terminal-operation-flash-start';
+  if (action === 'pause') return 'terminal-operation-flash-pause';
+  if (action === 'complete') return 'terminal-operation-flash-complete';
+  return '';
+}
 function terminalClientId() {
   const current = window.localStorage.getItem(TERMINAL_CLIENT_ID_KEY);
   if (current) return current;
@@ -96,6 +104,7 @@ export function WorkCenterTerminal({ sections, people, onDone, user, terminalMod
   const [productionSelection, setProductionSelection] = useState<ProductionSelection | null>(null);
   const [exitingOperationKeys, setExitingOperationKeys] = useState<Set<string>>(() => new Set());
   const [startingOperationKeys, setStartingOperationKeys] = useState<Set<string>>(() => new Set());
+  const [operationFlashActions, setOperationFlashActions] = useState<Map<string, TerminalOperationAction>>(() => new Map());
   const [filter, setFilter] = useState<TerminalFilter>(() => readTerminalFilter(sections[0] || '', user));
   const [personId, setPersonId] = useState<number | ''>('');
   const [operator, setOperator] = useState(user?.displayName || 'Петров');
@@ -107,6 +116,7 @@ export function WorkCenterTerminal({ sections, people, onDone, user, terminalMod
     setProductionSelection(null);
     setExitingOperationKeys(new Set());
     setStartingOperationKeys(new Set());
+    setOperationFlashActions(new Map());
   }, [section, user?.id]);
   useEffect(() => { writeTerminalFilter(section, user, filter); }, [section, user?.id, filter]);
   async function loadTerminal(target = section) { if (!target && !terminalMode) return; setError(''); try { const url = terminalMode ? `${API}/me/terminal` : `${API}/work-centers/${encodeURIComponent(target)}/terminal`; const json = await getJson<TerminalData>(url); setData(json); setPersonId(user?.personId || json.people[0]?.id || ''); if (user?.displayName) setOperator(user.displayName); else if (!operator && json.people[0]?.fullName) setOperator(json.people[0].fullName); } catch (e) { setError(e instanceof Error ? e.message : 'Ошибка терминала'); } }
@@ -204,6 +214,23 @@ export function WorkCenterTerminal({ sections, people, onDone, user, terminalMod
     const selectedExists = selectedTerminalOperationKey && queue.some(op => terminalOperationKey(op) === selectedTerminalOperationKey);
     if (!selectedExists) setSelectedTerminalOperationKey(terminalOperationKey(active));
   }, [data, queue, selectedTerminalOperationKey]);
+  function flashOperations(keys: string[], type: TerminalOperationAction) {
+    if (!keys.length) return;
+    setOperationFlashActions(prev => {
+      const next = new Map(prev);
+      keys.forEach(key => next.set(key, type));
+      return next;
+    });
+    window.setTimeout(() => {
+      setOperationFlashActions(prev => {
+        const next = new Map(prev);
+        keys.forEach(key => {
+          if (next.get(key) === type) next.delete(key);
+        });
+        return next;
+      });
+    }, OPERATION_FLASH_MS);
+  }
   async function action(op: Operation, type: 'start'|'pause'|'resume'|'complete') {
     const key = terminalOperationKey(op);
     const selection = type === 'start' ? await ensureProductionSelection(op) : productionSelection?.operationKey === key ? productionSelection : null;
@@ -224,6 +251,7 @@ export function WorkCenterTerminal({ sections, people, onDone, user, terminalMod
       return;
     }
     if (type === 'start' && selection?.operationKey === key) setProductionSelection(null);
+    if (type === 'pause' || type === 'complete') flashOperations([key], type);
     if (type === 'start' || type === 'resume') {
       flushSync(() => setStartingOperationKeys(prev => new Set(prev).add(key)));
       await delay(OPERATION_START_MS);
@@ -240,6 +268,7 @@ export function WorkCenterTerminal({ sections, people, onDone, user, terminalMod
       await delay(OPERATION_EXIT_MS);
     }
     await loadTerminal();
+    if (type === 'start' || type === 'resume') flashOperations([key], type);
     if (type === 'start' || type === 'resume') {
       setStartingOperationKeys(prev => {
         const next = new Set(prev);
@@ -274,6 +303,7 @@ export function WorkCenterTerminal({ sections, people, onDone, user, terminalMod
     if (!res.ok) return alert(apiErrorMessage(await res.json(), 'Не удалось выполнить групповое действие'));
     const actionKeys = items.map(op => terminalOperationKey(op));
     const exitKeys = actionKeys;
+    if (type === 'pause' || type === 'complete') flashOperations(actionKeys, type);
     if (type === 'start' || type === 'resume') {
       flushSync(() => {
         setStartingOperationKeys(prev => {
@@ -296,6 +326,7 @@ export function WorkCenterTerminal({ sections, people, onDone, user, terminalMod
     }
     setSelectedOperationKeys(new Set());
     await loadTerminal();
+    if (type === 'start' || type === 'resume') flashOperations(actionKeys, type);
     if (type === 'start' || type === 'resume') {
       setStartingOperationKeys(prev => {
         const next = new Set(prev);
@@ -315,6 +346,7 @@ export function WorkCenterTerminal({ sections, people, onDone, user, terminalMod
   const availablePeople = data?.people.length ? data.people : people.filter(p=>p.section===section);
   const selectedOperation = queue.find(op => terminalOperationKey(op) === selectedTerminalOperationKey) || data?.currentOperation || null;
   const selectedOperationKey = terminalOperationKey(selectedOperation);
+  const selectedOperationFlashClass = terminalOperationFlashClass(operationFlashActions.get(selectedOperationKey));
   const sectionName = data?.section || user?.workCenterSection || section || 'участок не выбран';
   return <>
     {!terminalMode && <PageTitle title="Терминал участка" subtitle="Рабочее место оператора: текущая операция, очередь и быстрые действия" />}
@@ -323,8 +355,8 @@ export function WorkCenterTerminal({ sections, people, onDone, user, terminalMod
     <TerminalFilterBar filter={filter} setFilter={setFilter} operationOptions={operationOptions} onReset={()=>setFilter(DEFAULT_TERMINAL_FILTER)} />
     {selectedOperations.length > 0 && <TerminalBulkBar selected={selectedOperations} onClear={()=>setSelectedOperationKeys(new Set())} onAction={bulkAction} />}
     <div className="terminal-workspace-grid">
-      <section className="card current-op terminal-current"><div className="card-head"><div><h2>Текущая операция</h2><p className="small">Основное действие на рабочем месте</p></div>{selectedOperation && <span className={`status ${selectedOperation.dependencyStatus === 'blocked' ? 'blocked' : selectedOperation.status}`}>{selectedOperation.dependencyStatus === 'blocked' ? 'Ожидает' : statusLabel(selectedOperation.status)}</span>}</div>{selectedOperation ? <OperationPanel op={selectedOperation} blockingOperationTitles={blockingOperationTitles} exiting={exitingOperationKeys.has(selectedOperationKey)} starting={startingOperationKeys.has(selectedOperationKey)} onAction={action} /> : <Empty text="Нет операций в очереди участка" />}</section>
-      <section className="card terminal-queue-card"><div className="card-head"><div><h2>Очередь</h2><p className="small">{sectionName}</p></div><span className="queue-count">{queue.length}</span></div><OperationQueue queue={queue} selectedKey={selectedTerminalOperationKey} selectedKeys={selectedOperationKeys} exitingKeys={exitingOperationKeys} startingKeys={startingOperationKeys} blockingOperationTitles={blockingOperationTitles} onSelect={selectProductionOperation} onToggle={toggleOperationSelection} /></section>
+      <section className="card current-op terminal-current"><div className="card-head"><div><h2>Текущая операция</h2><p className="small">Основное действие на рабочем месте</p></div>{selectedOperation && <span className={`status ${selectedOperation.dependencyStatus === 'blocked' ? 'blocked' : selectedOperation.status}`}>{selectedOperation.dependencyStatus === 'blocked' ? 'Ожидает' : statusLabel(selectedOperation.status)}</span>}</div>{selectedOperation ? <OperationPanel op={selectedOperation} blockingOperationTitles={blockingOperationTitles} exiting={exitingOperationKeys.has(selectedOperationKey)} starting={startingOperationKeys.has(selectedOperationKey)} flashClass={selectedOperationFlashClass} onAction={action} /> : <Empty text="Нет операций в очереди участка" />}</section>
+      <section className="card terminal-queue-card"><div className="card-head"><div><h2>Очередь</h2><p className="small">{sectionName}</p></div><span className="queue-count">{queue.length}</span></div><OperationQueue queue={queue} selectedKey={selectedTerminalOperationKey} selectedKeys={selectedOperationKeys} exitingKeys={exitingOperationKeys} startingKeys={startingOperationKeys} flashActions={operationFlashActions} blockingOperationTitles={blockingOperationTitles} onSelect={selectProductionOperation} onToggle={toggleOperationSelection} /></section>
     </div>
     <TerminalRecentEvents events={data?.recentEvents || []} />
   </>;
@@ -334,11 +366,17 @@ function TerminalFilterBar({ filter, setFilter, operationOptions, onReset }: { f
   return <section className="card terminal-filter-card"><div className="terminal-filter-grid"><input value={filter.query} onChange={e=>setFilter({...filter, query:e.target.value})} placeholder="Поиск: операция, заказ, изделие, единица" /><select value={filter.operationCode} onChange={e=>setFilter({...filter, operationCode:e.target.value})}><option value="">Все операции</option>{operationOptions.map(item=><option key={item.code} value={item.code}>{item.title}</option>)}</select><select value={filter.status} onChange={e=>setFilter({...filter, status:e.target.value})}><option value="active">Активные</option><option value="all">Все</option><option value="queued">Очередь</option><option value="work">В работе</option><option value="paused">Пауза</option><option value="done">Готово</option></select><input value={filter.orderNumber} onChange={e=>setFilter({...filter, orderNumber:e.target.value})} placeholder="Заказ / партия" /><input value={filter.productCode} onChange={e=>setFilter({...filter, productCode:e.target.value})} placeholder="Код изделия" /><label className="check-row"><input type="checkbox" checked={filter.groupOnly} onChange={e=>setFilter({...filter, groupOnly:e.target.checked})} />Групповые</label><button className="secondary" onClick={onReset}>Сбросить</button></div></section>;
 }
 
-function TerminalBulkBar({ selected, onClear, onAction }: { selected: Operation[]; onClear: () => void; onAction: (type: 'start'|'pause'|'resume'|'complete') => void }) {
+function TerminalBulkBar({ selected, onClear, onAction }: { selected: Operation[]; onClear: () => void; onAction: (type: 'start'|'pause'|'resume'|'complete') => void | Promise<unknown> }) {
+  const [pending, setPending] = useState(false);
   const groupable = selected.filter(isBulkActionSelectableOperation);
   const sameOperation = new Set(groupable.map(op => `${op.section}|${op.operationCode}`)).size === 1;
   const canRun = groupable.length === selected.length && groupable.length >= 2 && sameOperation;
-  return <section className="card terminal-bulk-card"><div><b>Выбрано {selected.length} шт.</b><span>{canRun ? `${displayOperationTitle(groupable[0])} · ${groupable[0].section}` : 'Выберите несколько операций: лазер, зачистка или пробивной/координатный участок'}</span></div><div className="inline-actions"><button disabled={!canRun} onClick={()=>onAction('start')}>Начать</button><button disabled={!canRun} className="pause" onClick={()=>onAction('pause')}>Пауза</button><button disabled={!canRun} onClick={()=>onAction('resume')}>Возобновить</button><button disabled={!canRun} className="done-action" onClick={()=>onAction('complete')}>Завершить</button><button className="secondary" onClick={onClear}>Снять выбор</button></div></section>;
+  const runAction = (type: 'start'|'pause'|'resume'|'complete') => {
+    if (pending) return;
+    setPending(true);
+    Promise.resolve(onAction(type)).finally(() => setPending(false));
+  };
+  return <section className="card terminal-bulk-card"><div><b>Выбрано {selected.length} шт.</b><span>{canRun ? `${displayOperationTitle(groupable[0])} · ${groupable[0].section}` : 'Выберите несколько операций: лазер, зачистка или пробивной/координатный участок'}</span></div><div className="inline-actions"><button disabled={!canRun || pending} onClick={()=>runAction('start')}>{pending ? 'Загрузка...' : 'Начать'}</button><button disabled={!canRun || pending} className="pause" onClick={()=>runAction('pause')}>{pending ? 'Загрузка...' : 'Пауза'}</button><button disabled={!canRun || pending} onClick={()=>runAction('resume')}>{pending ? 'Загрузка...' : 'Возобновить'}</button><button disabled={!canRun || pending} className="done-action" onClick={()=>runAction('complete')}>{pending ? 'Загрузка...' : 'Завершить'}</button><button className="secondary" disabled={pending} onClick={onClear}>Снять выбор</button></div></section>;
 }
 
 function TerminalBatchLabel({ value, compact = false }: { value: string; compact?: boolean }) {
@@ -348,9 +386,9 @@ function TerminalBatchLabel({ value, compact = false }: { value: string; compact
   return <span className={`terminal-batch-label ${compact ? 'compact' : ''}`}><span className="terminal-batch-title">Партия</span><span className="terminal-batch-code"><span>{prefix}</span>{suffix && <strong>{suffix}</strong>}</span></span>;
 }
 
-function OperationPanel({ op, blockingOperationTitles, exiting = false, starting = false, onAction }: { op: Operation; blockingOperationTitles: BlockingOperationTitles; exiting?: boolean; starting?: boolean; onAction: (op: Operation, type: 'start'|'pause'|'resume'|'complete') => void }) {
+function OperationPanel({ op, blockingOperationTitles, exiting = false, starting = false, flashClass = '', onAction }: { op: Operation; blockingOperationTitles: BlockingOperationTitles; exiting?: boolean; starting?: boolean; flashClass?: string; onAction: (op: Operation, type: 'start'|'pause'|'resume'|'complete') => void }) {
   const isRun = op.sourceType === 'production-run';
-  return <div className={`op-panel terminal-op-panel ${isRun ? 'production-terminal' : ''} ${op.dependencyStatus === 'blocked' ? 'blocked-op' : ''} ${starting ? 'terminal-operation-start' : ''} ${exiting ? 'terminal-operation-exit' : ''}`}><div className="terminal-op-main"><span className={`source-badge ${isRun ? 'production' : 'order'}`}>{isRun ? 'Единица' : 'Заказ'}</span><h3>{displayOperationDetail(op)}</h3><p className="terminal-op-line"><span>{op.productCode} {op.productName || 'Изделие'}</span>{isRun ? <TerminalBatchLabel value={displayOperationBatch(op)} /> : <span>{displayOrderNumber(op.orderNumber || op.displayId)}</span>}</p>{op.blockedBy?.length ? <div className="terminal-blocked-detail"><b>Ожидает завершения:</b><BlockedOperationsList items={op.blockedBy} titles={blockingOperationTitles} operations={op.blockedByOperations} /></div> : null}</div><div className="terminal-op-meta"><div><span>Единица</span><b>{op.unitLabel || '—'}</b></div><div><span>Деталь</span><b>{isRun ? (op.part || '—') : '—'}</b></div><div><span>Факт</span><b>{hours(op.actualHours)}</b></div></div><div className="terminal-op-status"><span className={`status ${op.dependencyStatus === 'blocked' ? 'blocked' : op.status}`}>{op.dependencyStatus === 'blocked' ? 'Ожидает' : statusLabel(op.status)}</span><p className="small">{op.lockedBy ? `В работе у: ${op.lockedBy}` : 'Исполнитель не назначен'}</p>{op.timeState?.activeKind && <p className="small">С {new Date(op.timeState.activeStartedAt || '').toLocaleTimeString('ru-RU')}</p>}</div><div className="actions terminal-actions"><OperationActions op={op} blockingOperationTitles={blockingOperationTitles} onAction={onAction} /></div></div>;
+  return <div className={`op-panel terminal-op-panel ${isRun ? 'production-terminal' : ''} ${op.dependencyStatus === 'blocked' ? 'blocked-op' : ''} ${starting ? 'terminal-operation-start' : ''} ${exiting ? 'terminal-operation-exit' : ''} ${flashClass}`}><div className="terminal-op-main"><span className={`source-badge ${isRun ? 'production' : 'order'}`}>{isRun ? 'Единица' : 'Заказ'}</span><h3>{displayOperationDetail(op)}</h3><p className="terminal-op-line"><span>{op.productCode} {op.productName || 'Изделие'}</span>{isRun ? <TerminalBatchLabel value={displayOperationBatch(op)} /> : <span>{displayOrderNumber(op.orderNumber || op.displayId)}</span>}</p>{op.blockedBy?.length ? <div className="terminal-blocked-detail"><b>Ожидает завершения:</b><BlockedOperationsList items={op.blockedBy} titles={blockingOperationTitles} operations={op.blockedByOperations} /></div> : null}</div><div className="terminal-op-meta"><div><span>Единица</span><b>{op.unitLabel || '—'}</b></div><div><span>Деталь</span><b>{isRun ? (op.part || '—') : '—'}</b></div><div><span>Факт</span><b>{hours(op.actualHours)}</b></div></div><div className="terminal-op-status"><span className={`status ${op.dependencyStatus === 'blocked' ? 'blocked' : op.status}`}>{op.dependencyStatus === 'blocked' ? 'Ожидает' : statusLabel(op.status)}</span><p className="small">{op.lockedBy ? `В работе у: ${op.lockedBy}` : 'Исполнитель не назначен'}</p>{op.timeState?.activeKind && <p className="small">С {new Date(op.timeState.activeStartedAt || '').toLocaleTimeString('ru-RU')}</p>}</div><div className="actions terminal-actions"><OperationActions op={op} blockingOperationTitles={blockingOperationTitles} onAction={onAction} /></div></div>;
 }
 
 function OperationActions({ op, blockingOperationTitles, onAction }: { op: Operation; blockingOperationTitles: BlockingOperationTitles; onAction: (op: Operation, type: 'start'|'pause'|'resume'|'complete') => void }) {
@@ -363,12 +401,12 @@ function OperationActions({ op, blockingOperationTitles, onAction }: { op: Opera
     setPending(true);
     Promise.resolve(onAction(op, type)).finally(() => setPending(false));
   };
-  return <>{blocked && <div className="blocked-note terminal-blocked-note"><span>Ожидает:</span><BlockedOperationsList items={op.blockedBy} titles={blockingOperationTitles} operations={op.blockedByOperations} compact /></div>}{(op.status === 'new' || op.status === 'queued') && <button className="terminal-start-btn" disabled={pending || blocked} onClick={()=>runAction('start')}>Начать</button>}{op.status === 'work' && <button className="terminal-pause-btn" disabled={pending} onClick={()=>runAction('pause')}>Приостановить</button>}{op.status === 'paused' && <button className="terminal-start-btn" disabled={pending} onClick={()=>runAction('resume')}>Начать</button>}{op.status !== 'done' && op.status !== 'canceled' && <button className="terminal-stop-btn" disabled={pending || !canComplete} title={completeReason} onClick={()=>runAction('complete')}>Завершить</button>}</>;
+  return <>{blocked && <div className="blocked-note terminal-blocked-note"><span>Ожидает:</span><BlockedOperationsList items={op.blockedBy} titles={blockingOperationTitles} operations={op.blockedByOperations} compact /></div>}{(op.status === 'new' || op.status === 'queued') && <button className="terminal-start-btn" disabled={pending || blocked} onClick={()=>runAction('start')}>{pending ? 'Загрузка...' : 'Начать'}</button>}{op.status === 'work' && <button className="terminal-pause-btn" disabled={pending} onClick={()=>runAction('pause')}>{pending ? 'Загрузка...' : 'Приостановить'}</button>}{op.status === 'paused' && <button className="terminal-start-btn" disabled={pending} onClick={()=>runAction('resume')}>{pending ? 'Загрузка...' : 'Начать'}</button>}{op.status !== 'done' && op.status !== 'canceled' && <button className="terminal-stop-btn" disabled={pending || !canComplete} title={completeReason} onClick={()=>runAction('complete')}>{pending ? 'Загрузка...' : 'Завершить'}</button>}</>;
 }
 
-function OperationQueue({ queue, selectedKey, selectedKeys, exitingKeys, startingKeys, blockingOperationTitles, onSelect, onToggle }: { queue: Operation[]; selectedKey: string; selectedKeys: Set<string>; exitingKeys: Set<string>; startingKeys: Set<string>; blockingOperationTitles: BlockingOperationTitles; onSelect: (op: Operation) => void | Promise<unknown>; onToggle: (op: Operation) => void }) {
+function OperationQueue({ queue, selectedKey, selectedKeys, exitingKeys, startingKeys, flashActions, blockingOperationTitles, onSelect, onToggle }: { queue: Operation[]; selectedKey: string; selectedKeys: Set<string>; exitingKeys: Set<string>; startingKeys: Set<string>; flashActions: Map<string, TerminalOperationAction>; blockingOperationTitles: BlockingOperationTitles; onSelect: (op: Operation) => void | Promise<unknown>; onToggle: (op: Operation) => void }) {
   if (!queue.length) return <Empty text="Очередь пуста" />;
-  return <div className="terminal-queue-list">{queue.map(op=>{ const key = terminalOperationKey(op); const selected = key === selectedKey; const checked = selectedKeys.has(key); const exiting = exitingKeys.has(key); const starting = startingKeys.has(key); const runLabel = op.sourceType === 'production-run' ? displayOperationBatch(op) : displayOrderNumber(op.orderNumber || op.displayId); const groupable = isBulkActionSelectableOperation(op); return <div key={key} className={`terminal-queue-item ${groupable ? 'bulk-enabled' : 'bulk-disabled'} ${selected ? 'active' : ''} ${checked ? 'checked' : ''} ${op.sourceType === 'production-run' ? 'production-row' : ''} ${starting ? 'terminal-operation-start' : ''} ${exiting ? 'terminal-operation-exit' : ''}`}>{groupable && <label className="queue-check"><input type="checkbox" checked={checked} disabled={exiting || starting} onChange={()=>onToggle(op)} /></label>}<button type="button" disabled={exiting} onClick={()=>onSelect(op)}><div><b>{displayOperationDetail(op)}</b><span className="terminal-queue-meta">{op.sourceType === 'production-run' ? <TerminalBatchLabel value={runLabel} compact /> : <>Заказ {runLabel}</>}<span className="terminal-queue-product">· {op.productCode} · ед. {op.unitLabel || '1/1'}</span></span>{groupable && <small>Групповое выполнение</small>}</div><span className={`status ${op.dependencyStatus === 'blocked' ? 'blocked' : op.status}`}>{op.dependencyStatus === 'blocked' ? 'Ожидает' : statusLabel(op.status)}</span></button>{op.blockedBy?.length ? <div className="queue-blocked"><span>Ожидает:</span><BlockedOperationsList items={op.blockedBy} titles={blockingOperationTitles} operations={op.blockedByOperations} compact /></div> : null}</div>; })}</div>;
+  return <div className="terminal-queue-list">{queue.map(op=>{ const key = terminalOperationKey(op); const selected = key === selectedKey; const checked = selectedKeys.has(key); const exiting = exitingKeys.has(key); const starting = startingKeys.has(key); const flashClass = terminalOperationFlashClass(flashActions.get(key)); const runLabel = op.sourceType === 'production-run' ? displayOperationBatch(op) : displayOrderNumber(op.orderNumber || op.displayId); const groupable = isBulkActionSelectableOperation(op); return <div key={key} className={`terminal-queue-item ${groupable ? 'bulk-enabled' : 'bulk-disabled'} ${selected ? 'active' : ''} ${checked ? 'checked' : ''} ${op.sourceType === 'production-run' ? 'production-row' : ''} ${starting ? 'terminal-operation-start' : ''} ${exiting ? 'terminal-operation-exit' : ''} ${flashClass}`}>{groupable && <label className="queue-check"><input type="checkbox" checked={checked} disabled={exiting || starting} onChange={()=>onToggle(op)} /></label>}<button type="button" disabled={exiting} onClick={()=>onSelect(op)}><div><b>{displayOperationDetail(op)}</b><span className="terminal-queue-meta">{op.sourceType === 'production-run' ? <TerminalBatchLabel value={runLabel} compact /> : <>Заказ {runLabel}</>}<span className="terminal-queue-product">· {op.productCode} · ед. {op.unitLabel || '1/1'}</span></span>{groupable && <small>Групповое выполнение</small>}</div><span className={`status ${op.dependencyStatus === 'blocked' ? 'blocked' : op.status}`}>{op.dependencyStatus === 'blocked' ? 'Ожидает' : statusLabel(op.status)}</span></button>{op.blockedBy?.length ? <div className="queue-blocked"><span>Ожидает:</span><BlockedOperationsList items={op.blockedBy} titles={blockingOperationTitles} operations={op.blockedByOperations} compact /></div> : null}</div>; })}</div>;
 }
 
 function TerminalRecentEvents({ events }: { events: TerminalRecentEvent[] }) {

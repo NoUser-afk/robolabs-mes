@@ -19,7 +19,7 @@ type ProductionDependencyStatus = 'available' | 'blocked' | 'in_work' | 'done';
 type ProcessGraphPhase = 'done' | 'current' | 'ready' | 'blocked' | 'upcoming';
 const DEFAULT_SECTION_AVAILABLE_HOURS = 160;
 const TERMINAL_SELECTION_TTL_MS = 45_000;
-const REMOVED_REFERENCE_OPERATION_CODES = new Set(['ОР-00031']);
+const REMOVED_REFERENCE_OPERATION_CODES = new Set(['РћР -00031']);
 const SERIALIZABLE_TRANSACTION_OPTIONS = {
   isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
   maxWait: 10000,
@@ -239,7 +239,7 @@ export class MesService {
   constructor(private readonly prisma: PrismaService) {}
 
   async importOrdersExcel(file?: Express.Multer.File) {
-    if (!file?.buffer) throw new BadRequestException('Excel-файл не передан');
+    if (!file?.buffer) throw new BadRequestException('Excel-С„Р°Р№Р» РЅРµ РїРµСЂРµРґР°РЅ');
     const workbook = XLSX.read(file.buffer, { type: 'buffer', cellDates: true });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json<ExcelRow>(sheet, { defval: '' });
@@ -248,27 +248,27 @@ export class MesService {
     let rowsUpdated = 0;
 
     const route = await this.prisma.routeTemplate.findFirst({ where: { isActive: true }, include: { operations: true } });
-    if (!route) throw new BadRequestException('Активный маршрут не найден. Выполните seed.');
+    if (!route) throw new BadRequestException('РђРєС‚РёРІРЅС‹Р№ РјР°СЂС€СЂСѓС‚ РЅРµ РЅР°Р№РґРµРЅ. Р’С‹РїРѕР»РЅРёС‚Рµ seed.');
 
     for (const [index, row] of rows.entries()) {
       const rowNumber = index + 2;
-      const orderNumber = this.cell(row, 'orderNumber', 'НомерЗаказа', 'Заказ');
-      const productCode = this.cell(row, 'productCode', 'КодИзделия', 'Код');
-      const quantity = Number(this.cell(row, 'quantity', 'Количество', 'КолВо') || 0);
+      const orderNumber = this.cell(row, 'orderNumber', 'РќРѕРјРµСЂР—Р°РєР°Р·Р°', 'Р—Р°РєР°Р·');
+      const productCode = this.cell(row, 'productCode', 'РљРѕРґРР·РґРµР»РёСЏ', 'РљРѕРґ');
+      const quantity = Number(this.cell(row, 'quantity', 'РљРѕР»РёС‡РµСЃС‚РІРѕ', 'РљРѕР»Р’Рѕ') || 0);
       if (!orderNumber || !productCode || !quantity) {
-        errors.push({ row: rowNumber, error: 'Обязательны orderNumber/productCode/quantity' });
+        errors.push({ row: rowNumber, error: 'РћР±СЏР·Р°С‚РµР»СЊРЅС‹ orderNumber/productCode/quantity' });
         continue;
       }
       const existing = await this.prisma.order.findUnique({ where: { orderNumber } });
       const data = {
         orderNumber,
         productCode,
-        productName: this.cell(row, 'productName', 'Изделие', 'Номенклатура'),
+        productName: this.cell(row, 'productName', 'РР·РґРµР»РёРµ', 'РќРѕРјРµРЅРєР»Р°С‚СѓСЂР°'),
         quantity,
-        dueDate: this.dateCell(this.cellRaw(row, 'shipmentDate', 'Дата отгрузки', 'ДатаОтгрузки', 'dueDate', 'Срок', 'ДатаЗавершения')),
-        customer: this.cell(row, 'customer', 'Заказчик'),
-        priority: this.cell(row, 'priority', 'Приоритет'),
-        comment: [this.cell(row, 'comment', 'Комментарий'), this.cell(row, 'kd', 'КД') ? `КД: ${this.cell(row, 'kd', 'КД')}` : ''].filter(Boolean).join(' · '),
+        dueDate: this.dateCell(this.cellRaw(row, 'shipmentDate', 'Р”Р°С‚Р° РѕС‚РіСЂСѓР·РєРё', 'Р”Р°С‚Р°РћС‚РіСЂСѓР·РєРё', 'dueDate', 'РЎСЂРѕРє', 'Р”Р°С‚Р°Р—Р°РІРµСЂС€РµРЅРёСЏ')),
+        customer: this.cell(row, 'customer', 'Р—Р°РєР°Р·С‡РёРє'),
+        priority: this.cell(row, 'priority', 'РџСЂРёРѕСЂРёС‚РµС‚'),
+        comment: [this.cell(row, 'comment', 'РљРѕРјРјРµРЅС‚Р°СЂРёР№'), this.cell(row, 'kd', 'РљР”') ? `РљР”: ${this.cell(row, 'kd', 'РљР”')}` : ''].filter(Boolean).join(' В· '),
         sourceFile: file.originalname,
       };
       const order = existing
@@ -295,7 +295,7 @@ export class MesService {
 
   async order(id: number) {
     const order = await this.prisma.order.findUnique({ where: { id }, include: { operations: { orderBy: { sortOrder: 'asc' } } } });
-    if (!order) throw new NotFoundException('Заказ не найден');
+    if (!order) throw new NotFoundException('Р—Р°РєР°Р· РЅРµ РЅР°Р№РґРµРЅ');
     return { ...order, progress: this.progress(order.operations) };
   }
 
@@ -305,7 +305,7 @@ export class MesService {
 
   async setOperationStatus(orderId: number, operationId: number, status: OperationStatus, body: { personId?: number; comment?: string }) {
     const op = await this.prisma.orderOperation.findFirst({ where: { id: operationId, orderId } });
-    if (!op) throw new NotFoundException('Операция заказа не найдена');
+    if (!op) throw new NotFoundException('РћРїРµСЂР°С†РёСЏ Р·Р°РєР°Р·Р° РЅРµ РЅР°Р№РґРµРЅР°');
     await this.assertOrderEditable(orderId);
     const targetLifecycle: LifecycleStatus = status === 'work' ? 'work' : status === 'done' ? 'done' : 'new';
     const transition = orderOperationTransition(this.effectiveStatus(op), targetLifecycle);
@@ -344,7 +344,7 @@ export class MesService {
 
   async resetOperationStatus(orderId: number, operationId: number) {
     const op = await this.prisma.orderOperation.findFirst({ where: { id: operationId, orderId } });
-    if (!op) throw new NotFoundException('Операция заказа не найдена');
+    if (!op) throw new NotFoundException('РћРїРµСЂР°С†РёСЏ Р·Р°РєР°Р·Р° РЅРµ РЅР°Р№РґРµРЅР°');
     await this.assertOrderEditable(orderId);
     const transition = orderOperationTransition(this.effectiveStatus(op), 'new');
     if (transition.ok === false) throw new BadRequestException(transition.reason);
@@ -358,14 +358,14 @@ export class MesService {
 
   async archiveOrder(orderId: number) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId }, include: { operations: true } });
-    if (!order) throw new NotFoundException('Заказ не найден');
-    if (!order.operations.length || order.operations.some((op) => op.status !== 'done')) throw new BadRequestException('Заказ можно архивировать только после завершения всех этапов');
+    if (!order) throw new NotFoundException('Р—Р°РєР°Р· РЅРµ РЅР°Р№РґРµРЅ');
+    if (!order.operations.length || order.operations.some((op) => op.status !== 'done')) throw new BadRequestException('Р—Р°РєР°Р· РјРѕР¶РЅРѕ Р°СЂС…РёРІРёСЂРѕРІР°С‚СЊ С‚РѕР»СЊРєРѕ РїРѕСЃР»Рµ Р·Р°РІРµСЂС€РµРЅРёСЏ РІСЃРµС… СЌС‚Р°РїРѕРІ');
     return this.prisma.order.update({ where: { id: orderId }, data: { status: 'archived' } });
   }
 
   async generateCustomerOrderAccess(orderId: number, actor?: string) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
-    if (!order) throw new NotFoundException('Заказ не найден');
+    if (!order) throw new NotFoundException('Р—Р°РєР°Р· РЅРµ РЅР°Р№РґРµРЅ');
     const scopeOrders = await this.prisma.order.findMany({
       where: { orderNumber: order.orderNumber, status: { not: 'archived' } },
       select: { id: true },
@@ -397,7 +397,7 @@ export class MesService {
 
   async generateCustomerProductionRunAccess(runId: string, actor?: string) {
     const run = await this.readProductionRun(runId);
-    if (!run || run.archived || run.testData) throw new NotFoundException('Партия не найдена');
+    if (!run || run.archived || run.testData) throw new NotFoundException('РџР°СЂС‚РёСЏ РЅРµ РЅР°Р№РґРµРЅР°');
     const accessCode = generateCustomerAccessCode();
     const now = new Date();
     const access = await this.prisma.$transaction(async (tx) => {
@@ -425,7 +425,7 @@ export class MesService {
 
   async customerOrderStatus(body: { accessCode?: string }) {
     const accessCode = String(body.accessCode || '').trim();
-    if (!accessCode) throw new NotFoundException('Код доступа не найден');
+    if (!accessCode) throw new NotFoundException('РљРѕРґ РґРѕСЃС‚СѓРїР° РЅРµ РЅР°Р№РґРµРЅ');
     const activeAccesses = await this.prisma.customerOrderAccess.findMany({
       where: { disabledAt: null, order: { status: { not: 'archived' } } },
       include: { order: true },
@@ -454,9 +454,9 @@ export class MesService {
       orderBy: { createdAt: 'desc' },
     });
     const runAccess = runAccesses.find((item) => verifyCustomerAccessCode(accessCode, item.accessCodeHash));
-    if (!runAccess) throw new NotFoundException('Код доступа не найден');
+    if (!runAccess) throw new NotFoundException('РљРѕРґ РґРѕСЃС‚СѓРїР° РЅРµ РЅР°Р№РґРµРЅ');
     const run = await this.readProductionRun(runAccess.runId);
-    if (!run || run.archived || run.testData) throw new NotFoundException('Код доступа не найден');
+    if (!run || run.archived || run.testData) throw new NotFoundException('РљРѕРґ РґРѕСЃС‚СѓРїР° РЅРµ РЅР°Р№РґРµРЅ');
     return buildCustomerProductionRunStatusResponse({ run: this.enrichProductionRun(run), generatedAt: new Date() });
   }
 
@@ -506,7 +506,7 @@ export class MesService {
 
   async addReferenceSection(body: { name?: string; availableHours?: number }) {
     const name = String(body.name || '').trim();
-    if (!name) throw new BadRequestException('Укажите название участка');
+    if (!name) throw new BadRequestException('РЈРєР°Р¶РёС‚Рµ РЅР°Р·РІР°РЅРёРµ СѓС‡Р°СЃС‚РєР°');
     const section = await this.prisma.referenceSection.upsert({
       where: { name },
       update: { isActive: true },
@@ -523,9 +523,9 @@ export class MesService {
 
   async updateReferenceSection(id: number, body: { name?: string; isActive?: boolean; availableHours?: number }) {
     const existing = await this.prisma.referenceSection.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException('Участок не найден');
+    if (!existing) throw new NotFoundException('РЈС‡Р°СЃС‚РѕРє РЅРµ РЅР°Р№РґРµРЅ');
     const name = String(body.name || existing.name).trim();
-    if (!name) throw new BadRequestException('Укажите название участка');
+    if (!name) throw new BadRequestException('РЈРєР°Р¶РёС‚Рµ РЅР°Р·РІР°РЅРёРµ СѓС‡Р°СЃС‚РєР°');
     const section = await this.prisma.referenceSection.update({
       where: { id },
       data: { name, isActive: body.isActive ?? existing.isActive },
@@ -548,7 +548,7 @@ export class MesService {
   async addReferenceOperation(body: { operationCode?: string; name?: string; defaultSection?: string; defaultNormHours?: number; partOrAssembly?: string }) {
     const operationCode = await this.nextReferenceOperationCode();
     const name = String(body.name || '').trim();
-    if (!name) throw new BadRequestException('Укажите название операции');
+    if (!name) throw new BadRequestException('РЈРєР°Р¶РёС‚Рµ РЅР°Р·РІР°РЅРёРµ РѕРїРµСЂР°С†РёРё');
     return this.prisma.referenceOperation.upsert({
       where: { operationCode },
       update: {
@@ -571,9 +571,9 @@ export class MesService {
 
   async updateReferenceOperation(id: number, body: { operationCode?: string; name?: string; defaultSection?: string; defaultNormHours?: number; partOrAssembly?: string; isActive?: boolean }) {
     const existing = await this.prisma.referenceOperation.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException('Операция не найдена');
+    if (!existing) throw new NotFoundException('РћРїРµСЂР°С†РёСЏ РЅРµ РЅР°Р№РґРµРЅР°');
     const name = String(body.name || existing.name).trim();
-    if (!name) throw new BadRequestException('Укажите название операции');
+    if (!name) throw new BadRequestException('РЈРєР°Р¶РёС‚Рµ РЅР°Р·РІР°РЅРёРµ РѕРїРµСЂР°С†РёРё');
     return this.prisma.referenceOperation.update({
       where: { id },
       data: {
@@ -589,10 +589,10 @@ export class MesService {
   private async nextReferenceOperationCode() {
     const operations = await this.prisma.referenceOperation.findMany({ select: { operationCode: true } });
     const maxNumber = operations.reduce((max, operation) => {
-      const match = String(operation.operationCode || '').trim().match(/^ОР-(\d{5})$/u);
+      const match = String(operation.operationCode || '').trim().match(/^РћР -(\d{5})$/u);
       return match ? Math.max(max, Number(match[1])) : max;
     }, 0);
-    return `ОР-${String(maxNumber + 1).padStart(5, '0')}`;
+    return `РћР -${String(maxNumber + 1).padStart(5, '0')}`;
   }
 
   people() {
@@ -600,7 +600,7 @@ export class MesService {
   }
 
   addPerson(body: { fullName: string; section: string }) {
-    if (!body.fullName || !body.section) throw new BadRequestException('Заполните ФИО и участок');
+    if (!body.fullName || !body.section) throw new BadRequestException('Р—Р°РїРѕР»РЅРёС‚Рµ Р¤РРћ Рё СѓС‡Р°СЃС‚РѕРє');
     return this.prisma.person.create({ data: body });
   }
 
@@ -800,7 +800,7 @@ export class MesService {
 
   async nomenclatureProcess(id: string) {
     const product = (await this.allProductProcesses()).find((item) => item.id === id || item.productCode === id);
-    if (!product) throw new NotFoundException('Номенклатура не найдена');
+    if (!product) throw new NotFoundException('РќРѕРјРµРЅРєР»Р°С‚СѓСЂР° РЅРµ РЅР°Р№РґРµРЅР°');
     return product;
   }
 
@@ -817,7 +817,7 @@ export class MesService {
       };
     }
     const imported = this.findImportedProductProcess(id);
-    if (!imported) throw new NotFoundException('РќРѕРјРµРЅРєР»Р°С‚СѓСЂР° РЅРµ РЅР°Р№РґРµРЅР°');
+    if (!imported) throw new NotFoundException('Р СњР С•Р СР ВµР Р…Р С”Р В»Р В°РЎвЂљРЎС“РЎР‚Р В° Р Р…Р Вµ Р Р…Р В°Р в„–Р Т‘Р ВµР Р…Р В°');
     const version = this.importedNomenclatureVersionSummary(imported);
     return { processId: imported.id, activeVersionId: version.id, versionCounter: 1, versions: [version], activeVersion: version };
   }
@@ -830,7 +830,7 @@ export class MesService {
     }
     const imported = this.findImportedProductProcess(id);
     if (imported && this.isImportedVersionId(imported, versionId)) return this.importedProductProcess(imported);
-    throw new NotFoundException('Р’РµСЂСЃРёСЏ С‚РµС…РїСЂРѕС†РµСЃСЃР° РЅРµ РЅР°Р№РґРµРЅР°');
+    throw new NotFoundException('Р вЂ™Р ВµРЎР‚РЎРѓР С‘РЎРЏ РЎвЂљР ВµРЎвЂ¦Р С—РЎР‚Р С•РЎвЂ Р ВµРЎРѓРЎРѓР В° Р Р…Р Вµ Р Р…Р В°Р в„–Р Т‘Р ВµР Р…Р В°');
   }
 
   async createNomenclatureProcessVersion(id: string, body: ManualProcessInput, actor?: string) {
@@ -844,7 +844,7 @@ export class MesService {
   async updateNomenclatureProcessVersion(id: string, versionId: string, body: ManualProcessInput, actor?: string) {
     return this.withSerializableRetry(async (tx) => {
       const record = await this.findNomenclatureProcessRecord(id, tx);
-      if (!record) throw new NotFoundException('Ручной техпроцесс не найден');
+      if (!record) throw new NotFoundException('Р СѓС‡РЅРѕР№ С‚РµС…РїСЂРѕС†РµСЃСЃ РЅРµ РЅР°Р№РґРµРЅ');
       const version = this.findVersionInRecord(record, versionId);
       const status = this.nomenclatureVersionStatus(version.status);
       const process = this.normalizeManualProcess({ ...body, id: record.id });
@@ -895,7 +895,7 @@ export class MesService {
   async activateNomenclatureProcessVersion(id: string, versionId: string, actor?: string) {
     return this.withSerializableRetry(async (tx) => {
       const record = await this.findNomenclatureProcessRecord(id, tx);
-      if (!record) throw new NotFoundException('Р СѓС‡РЅРѕР№ С‚РµС…РїСЂРѕС†РµСЃСЃ РЅРµ РЅР°Р№РґРµРЅ');
+      if (!record) throw new NotFoundException('Р В РЎС“РЎвЂЎР Р…Р С•Р в„– РЎвЂљР ВµРЎвЂ¦Р С—РЎР‚Р С•РЎвЂ Р ВµРЎРѓРЎРѓ Р Р…Р Вµ Р Р…Р В°Р в„–Р Т‘Р ВµР Р…');
       const version = this.findVersionInRecord(record, versionId);
       await this.activateNomenclatureVersion(record.id, version.id, actor, tx);
       const refreshed = await this.findNomenclatureProcessRecord(record.id, tx);
@@ -906,7 +906,7 @@ export class MesService {
   async copyNomenclatureProcessVersion(id: string, versionId: string, actor?: string) {
     return this.withSerializableRetry(async (tx) => {
       const record = await this.findNomenclatureProcessRecord(id, tx);
-      if (!record) throw new NotFoundException('Р СѓС‡РЅРѕР№ С‚РµС…РїСЂРѕС†РµСЃСЃ РЅРµ РЅР°Р№РґРµРЅ');
+      if (!record) throw new NotFoundException('Р В РЎС“РЎвЂЎР Р…Р С•Р в„– РЎвЂљР ВµРЎвЂ¦Р С—РЎР‚Р С•РЎвЂ Р ВµРЎРѓРЎРѓ Р Р…Р Вµ Р Р…Р В°Р в„–Р Т‘Р ВµР Р…');
       const source = this.findVersionInRecord(record, versionId);
       const process = this.productProcessFromVersion(record, source);
       const nextNo = Math.max(record.versionCounter || 0, ...record.versions.map((version: any) => Number(version.versionNo || 0))) + 1;
@@ -915,10 +915,10 @@ export class MesService {
         versionId: this.nomenclatureVersionId(record.id, nextNo),
         versionNo: nextNo,
         status: 'draft',
-        comment: `Р§РµСЂРЅРѕРІРёРє РёР· v${source.versionNo}`,
+        comment: `Р В§Р ВµРЎР‚Р Р…Р С•Р Р†Р С‘Р С” Р С‘Р В· v${source.versionNo}`,
         createdBy: actor || null,
       });
-      await this.createNomenclatureVersionRow(record.id, copy, nextNo, 'draft', actor, `Р§РµСЂРЅРѕРІРёРє РёР· v${source.versionNo}`, tx);
+      await this.createNomenclatureVersionRow(record.id, copy, nextNo, 'draft', actor, `Р В§Р ВµРЎР‚Р Р…Р С•Р Р†Р С‘Р С” Р С‘Р В· v${source.versionNo}`, tx);
       const normalizedCopy = { ...copy, versionComment: comment };
       await tx.nomenclatureProcessVersion.update({
         where: { id: normalizedCopy.versionId || this.nomenclatureVersionId(record.id, nextNo) },
@@ -931,10 +931,10 @@ export class MesService {
 
   async deleteNomenclatureProcessVersion(id: string, versionId: string) {
     const record = await this.findNomenclatureProcessRecord(id);
-    if (!record) throw new NotFoundException('Р СѓС‡РЅРѕР№ С‚РµС…РїСЂРѕС†РµСЃСЃ РЅРµ РЅР°Р№РґРµРЅ');
+    if (!record) throw new NotFoundException('Р В РЎС“РЎвЂЎР Р…Р С•Р в„– РЎвЂљР ВµРЎвЂ¦Р С—РЎР‚Р С•РЎвЂ Р ВµРЎРѓРЎРѓ Р Р…Р Вµ Р Р…Р В°Р в„–Р Т‘Р ВµР Р…');
     const version = this.findVersionInRecord(record, versionId);
-    if (record.activeVersionId === version.id || version.status === 'active') throw new BadRequestException('РђРєС‚РёРІРЅСѓСЋ РІРµСЂСЃРёСЋ С‚РµС…РїСЂРѕС†РµСЃСЃР° СѓРґР°Р»РёС‚СЊ РЅРµР»СЊР·СЏ');
-    if (version.status !== 'draft') throw new BadRequestException('РЈРґР°Р»СЏС‚СЊ РјРѕР¶РЅРѕ С‚РѕР»СЊРєРѕ С‡РµСЂРЅРѕРІС‹Рµ РІРµСЂСЃРёРё');
+    if (record.activeVersionId === version.id || version.status === 'active') throw new BadRequestException('Р С’Р С”РЎвЂљР С‘Р Р†Р Р…РЎС“РЎР‹ Р Р†Р ВµРЎР‚РЎРѓР С‘РЎР‹ РЎвЂљР ВµРЎвЂ¦Р С—РЎР‚Р С•РЎвЂ Р ВµРЎРѓРЎРѓР В° РЎС“Р Т‘Р В°Р В»Р С‘РЎвЂљРЎРЉ Р Р…Р ВµР В»РЎРЉР В·РЎРЏ');
+    if (version.status !== 'draft') throw new BadRequestException('Р Р€Р Т‘Р В°Р В»РЎРЏРЎвЂљРЎРЉ Р СР С•Р В¶Р Р…Р С• РЎвЂљР С•Р В»РЎРЉР С”Р С• РЎвЂЎР ВµРЎР‚Р Р…Р С•Р Р†РЎвЂ№Р Вµ Р Р†Р ВµРЎР‚РЎРѓР С‘Р С‘');
     await this.prisma.nomenclatureProcessVersion.delete({ where: { id: version.id } });
     return { ok: true, id: version.id, processId: record.id };
   }
@@ -945,7 +945,7 @@ export class MesService {
 
   async copyNomenclatureProcess(id: string, actor?: string) {
     const source = (await this.allProductProcesses()).find((item) => item.id === id || item.productCode === id);
-    if (!source) throw new NotFoundException('Номенклатура не найдена');
+    if (!source) throw new NotFoundException('РќРѕРјРµРЅРєР»Р°С‚СѓСЂР° РЅРµ РЅР°Р№РґРµРЅР°');
     const usedIds = new Set((await this.allProductProcesses()).map((product) => product.id));
     const usedProductKeys = new Set((await this.allProductProcesses()).flatMap((product) => this.productMatchKeys(product.productCode)));
     let copyIndex = 1;
@@ -955,7 +955,7 @@ export class MesService {
     const copyPrefix = '\u041a\u041e\u041f\u0418\u042f';
     do {
       const safePrefix = copyIndex === 1 ? copyPrefix : `${copyPrefix} ${copyIndex}`;
-      const prefix = copyIndex === 1 ? 'КОПИЯ' : `КОПИЯ ${copyIndex}`;
+      const prefix = copyIndex === 1 ? 'РљРћРџРРЇ' : `РљРћРџРРЇ ${copyIndex}`;
       void prefix;
       equipment = `${safePrefix} ${source.equipment}`.trim();
       productCode = `${safePrefix} ${source.productCode}`.trim();
@@ -969,8 +969,8 @@ export class MesService {
       id: processId,
       equipment,
       productCode,
-      category: source.category || 'Ручная номенклатура',
-      notes: [`Скопировано из ${source.equipment} (${source.productCode}).`, ...(source.notes || [])],
+      category: source.category || 'Р СѓС‡РЅР°СЏ РЅРѕРјРµРЅРєР»Р°С‚СѓСЂР°',
+      notes: [`РЎРєРѕРїРёСЂРѕРІР°РЅРѕ РёР· ${source.equipment} (${source.productCode}).`, ...(source.notes || [])],
       summary: source.summary || {},
       processSteps: source.processSteps.map((step) => ({ ...step })),
       ...{ category: source.category || manualCategory, notes: [copiedNote, ...(source.notes || [])] },
@@ -982,8 +982,8 @@ export class MesService {
     const record = await this.prisma.nomenclatureProcessRecord.findUnique({ where: { id } });
     if (!record) {
       const imported = (productsProcesses.products as ProductProcess[]).some((product) => product.id === id || product.productCode === id);
-      if (imported) throw new BadRequestException('Импортированный техпроцесс удалить нельзя. Скопируйте его и удаляйте только ручную копию.');
-      throw new NotFoundException('Ручной техпроцесс не найден');
+      if (imported) throw new BadRequestException('РРјРїРѕСЂС‚РёСЂРѕРІР°РЅРЅС‹Р№ С‚РµС…РїСЂРѕС†РµСЃСЃ СѓРґР°Р»РёС‚СЊ РЅРµР»СЊР·СЏ. РЎРєРѕРїРёСЂСѓР№С‚Рµ РµРіРѕ Рё СѓРґР°Р»СЏР№С‚Рµ С‚РѕР»СЊРєРѕ СЂСѓС‡РЅСѓСЋ РєРѕРїРёСЋ.');
+      throw new NotFoundException('Р СѓС‡РЅРѕР№ С‚РµС…РїСЂРѕС†РµСЃСЃ РЅРµ РЅР°Р№РґРµРЅ');
     }
     await this.prisma.nomenclatureProcessRecord.delete({ where: { id } });
     return { ok: true, id };
@@ -997,7 +997,7 @@ export class MesService {
   async migrateProductionRunsJson(filePath = this.productionRunsPath) {
     const content = await fs.readFile(filePath, 'utf8');
     const parsed = JSON.parse(content || '[]');
-    if (!Array.isArray(parsed)) throw new BadRequestException('production-runs JSON должен быть массивом');
+    if (!Array.isArray(parsed)) throw new BadRequestException('production-runs JSON РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ РјР°СЃСЃРёРІРѕРј');
     const runs = parsed.map((run) => this.normalizeProductionRun(run as ProductionRun));
     return this.withSerializableRetry(async (tx) => {
       await this.writeProductionRuns(runs, tx);
@@ -1116,7 +1116,7 @@ export class MesService {
   async productionUnitGraph(runId: string, unitId: string) {
     const run = this.enrichProductionRun(await this.findProductionRun(runId));
     const unit = run.units?.find((item) => item.unitId === unitId || String(item.unitNo) === unitId);
-    if (!unit) throw new NotFoundException('Единица запуска производства не найдена');
+    if (!unit) throw new NotFoundException('Р•РґРёРЅРёС†Р° Р·Р°РїСѓСЃРєР° РїСЂРѕРёР·РІРѕРґСЃС‚РІР° РЅРµ РЅР°Р№РґРµРЅР°');
     this.refreshProductionDependencies({ ...run, operations: unit.operations });
     const ordered = [...unit.operations].sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
     const graphLayout = this.productionGraphLayout({ ...run, operations: ordered }, ordered);
@@ -1169,7 +1169,7 @@ export class MesService {
   }
 
   async createProductionRun(body: { orderNumber?: string; productId?: string; productCode?: string; productName?: string; quantity?: number; operator?: string; priority?: ProductionPriority; priorityRank?: number }) {
-    const product = await this.findProductProcessOrThrow([body.productId, body.productCode, body.productName], 'Выберите номенклатуру для запуска производства');
+    const product = await this.findProductProcessOrThrow([body.productId, body.productCode, body.productName], 'Р’С‹Р±РµСЂРёС‚Рµ РЅРѕРјРµРЅРєР»Р°С‚СѓСЂСѓ РґР»СЏ Р·Р°РїСѓСЃРєР° РїСЂРѕРёР·РІРѕРґСЃС‚РІР°');
     const quantity = Math.max(1, Number(body.quantity || 1));
     const orderNumber = this.normalizeProductionRunOrderNumber(body.orderNumber);
     return this.withSerializableRetry(async (tx) => {
@@ -1177,8 +1177,7 @@ export class MesService {
       const orderMeta = orderNumber ? { id: null, orderNumber } : null;
       const run = this.buildProductionRun(product, quantity, body, orderMeta);
       this.assignOrderBatchIdentity(run, runs, product.productCode, orderMeta);
-      runs.push(run);
-      await this.writeProductionRuns(runs, tx);
+      await this.writeProductionRun(run, tx);
       return this.enrichProductionRun(run);
     });
   }
@@ -1188,25 +1187,26 @@ export class MesService {
     const requestedOrderNumber = this.normalizeProductionRunOrderNumber(body.orderNumber);
     const order = requestedOrderNumber ? await this.prisma.order.findUnique({ where: { orderNumber: requestedOrderNumber } }) : null;
     const identifiers = [body.productId, body.productCode, body.productName, order?.productCode, order?.productName, order?.orderNumber];
-    const product = await this.findProductProcessOrThrow(identifiers, 'Укажите заказ или номенклатуру для запуска');
-    const runs = await this.readProductionRuns();
-    if (order) {
-      const alreadyLaunched = this.activeProductionRuns(runs)
-        .filter((run) => this.isSameProductionOrderRun(run, product.productCode, { id: order.id, orderNumber: order.orderNumber, createdAt: order.createdAt, dueDate: order.dueDate }))
-        .reduce((sum, run) => sum + (run.launchedQuantity || run.units?.length || run.quantity || 0), 0);
-      if (alreadyLaunched + quantity > order.quantity) throw new BadRequestException(`Нельзя запустить больше остатка по заказу. Доступно: ${Math.max(0, order.quantity - alreadyLaunched)}`);
-    }
-    const orderMeta = order ? { id: order.id, orderNumber: order.orderNumber, createdAt: order.createdAt, dueDate: order.dueDate } : requestedOrderNumber ? { id: null, orderNumber: requestedOrderNumber } : null;
-    const run = this.buildProductionRun(product, quantity, body, orderMeta);
-    this.assignOrderBatchIdentity(run, runs, product.productCode, orderMeta);
-    runs.push(run);
-    await this.writeProductionRuns(runs);
-    return this.enrichProductionRun(run);
+    const product = await this.findProductProcessOrThrow(identifiers, 'РЈРєР°Р¶РёС‚Рµ Р·Р°РєР°Р· РёР»Рё РЅРѕРјРµРЅРєР»Р°С‚СѓСЂСѓ РґР»СЏ Р·Р°РїСѓСЃРєР°');
+    return this.withSerializableRetry(async (tx) => {
+      const runs = await this.readProductionRuns(tx);
+      if (order) {
+        const alreadyLaunched = this.activeProductionRuns(runs)
+          .filter((run) => this.isSameProductionOrderRun(run, product.productCode, { id: order.id, orderNumber: order.orderNumber, createdAt: order.createdAt, dueDate: order.dueDate }))
+          .reduce((sum, run) => sum + (run.launchedQuantity || run.units?.length || run.quantity || 0), 0);
+        if (alreadyLaunched + quantity > order.quantity) throw new BadRequestException(`РќРµР»СЊР·СЏ Р·Р°РїСѓСЃС‚РёС‚СЊ Р±РѕР»СЊС€Рµ РѕСЃС‚Р°С‚РєР° РїРѕ Р·Р°РєР°Р·Сѓ. Р”РѕСЃС‚СѓРїРЅРѕ: ${Math.max(0, order.quantity - alreadyLaunched)}`);
+      }
+      const orderMeta = order ? { id: order.id, orderNumber: order.orderNumber, createdAt: order.createdAt, dueDate: order.dueDate } : requestedOrderNumber ? { id: null, orderNumber: requestedOrderNumber } : null;
+      const run = this.buildProductionRun(product, quantity, body, orderMeta);
+      this.assignOrderBatchIdentity(run, runs, product.productCode, orderMeta);
+      await this.writeProductionRun(run, tx);
+      return this.enrichProductionRun(run);
+    });
   }
 
   async launchProductionBatch(body: { items?: Array<{ orderNumber?: string; productId?: string; productCode?: string; productName?: string; quantity?: number }>; priority?: ProductionPriority; priorityRank?: number; comment?: string; operator?: string }) {
     const items = (body.items || []).filter((item) => Number(item.quantity || 0) > 0);
-    if (!items.length) throw new BadRequestException('Выберите изделия для запуска партии');
+    if (!items.length) throw new BadRequestException('Р’С‹Р±РµСЂРёС‚Рµ РёР·РґРµР»РёСЏ РґР»СЏ Р·Р°РїСѓСЃРєР° РїР°СЂС‚РёРё');
     const batchNumber = `BATCH-${Date.now()}`;
     const runs = await this.readProductionRuns();
     const created: ProductionRun[] = [];
@@ -1215,7 +1215,7 @@ export class MesService {
       const requestedOrderNumber = this.normalizeProductionRunOrderNumber(item.orderNumber);
       const order = requestedOrderNumber ? await this.prisma.order.findUnique({ where: { orderNumber: requestedOrderNumber } }) : null;
       const identifiers = [item.productId, item.productCode, item.productName, order?.productCode, order?.productName, order?.orderNumber];
-      const product = await this.findProductProcessOrThrow(identifiers, 'Укажите заказ или номенклатуру для запуска партии');
+      const product = await this.findProductProcessOrThrow(identifiers, 'РЈРєР°Р¶РёС‚Рµ Р·Р°РєР°Р· РёР»Рё РЅРѕРјРµРЅРєР»Р°С‚СѓСЂСѓ РґР»СЏ Р·Р°РїСѓСЃРєР° РїР°СЂС‚РёРё');
       const orderMeta = order ? { id: order.id, orderNumber: order.orderNumber, createdAt: order.createdAt, dueDate: order.dueDate } : requestedOrderNumber ? { id: null, orderNumber: requestedOrderNumber } : null;
       if (order) {
         const alreadyLaunched = this.activeProductionRuns(runs)
@@ -1224,30 +1224,31 @@ export class MesService {
         const createdForOrder = created
           .filter((run) => this.isSameProductionOrderRun(run, product.productCode, orderMeta))
           .reduce((sum, run) => sum + (run.launchedQuantity || run.quantity || 0), 0);
-        if (alreadyLaunched + createdForOrder + quantity > order.quantity) throw new BadRequestException(`Нельзя запустить больше остатка по заказу ${order.orderNumber}. Доступно: ${Math.max(0, order.quantity - alreadyLaunched - createdForOrder)}`);
+        if (alreadyLaunched + createdForOrder + quantity > order.quantity) throw new BadRequestException(`РќРµР»СЊР·СЏ Р·Р°РїСѓСЃС‚РёС‚СЊ Р±РѕР»СЊС€Рµ РѕСЃС‚Р°С‚РєР° РїРѕ Р·Р°РєР°Р·Сѓ ${order.orderNumber}. Р”РѕСЃС‚СѓРїРЅРѕ: ${Math.max(0, order.quantity - alreadyLaunched - createdForOrder)}`);
       }
       const run = this.buildProductionRun(product, quantity, body, orderMeta);
       if (orderMeta) {
         this.assignOrderBatchIdentity(run, runs, product.productCode, orderMeta, created);
       } else {
         run.batchNumber = batchNumber;
-        run.batchName = `Партия ${batchNumber}`;
+        run.batchName = `РџР°СЂС‚РёСЏ ${batchNumber}`;
       }
       run.batchCreatedBy = body.operator?.trim() || null;
       run.batchSource = 'multi-selection';
       created.push(run);
     }
-    runs.push(...created);
-    await this.writeProductionRuns(runs);
-    await this.prisma.auditLog.create({
-      data: {
-        entityType: 'production-batch',
-        entityId: batchNumber,
-        action: 'launch',
-        actor: body.operator || undefined,
-        afterJson: { batchNumber, count: created.length, quantity: created.reduce((sum, run) => sum + run.quantity, 0), runs: created.map((run) => run.id) } as Prisma.InputJsonValue,
-        comment: body.comment || null,
-      },
+    await this.withSerializableRetry(async (tx) => {
+      for (const run of created) await this.writeProductionRun(run, tx);
+      await tx.auditLog.create({
+        data: {
+          entityType: 'production-batch',
+          entityId: batchNumber,
+          action: 'launch',
+          actor: body.operator || undefined,
+          afterJson: { batchNumber, count: created.length, quantity: created.reduce((sum, run) => sum + run.quantity, 0), runs: created.map((run) => run.id) } as Prisma.InputJsonValue,
+          comment: body.comment || null,
+        },
+      });
     });
     return { batchNumber, runs: created.map((run) => this.enrichProductionRun(run)) };
   }
@@ -1257,11 +1258,7 @@ export class MesService {
   }
 
   async startProductionRun(id: string) {
-    return this.updateProductionRun(id, (run, now) => {
-      if (run.status === 'done') throw new BadRequestException('Завершенный запуск нельзя снова запустить');
-      run.status = 'work';
-      run.startedAt ||= now;
-    });
+    return this.startProductionRunFast(id);
   }
 
   async deleteProductionRun(id: string) {
@@ -1277,7 +1274,7 @@ export class MesService {
       });
       const runIds = Array.from(new Set([id, ...runs.map((run) => run.id)]));
       const legacyIds = Array.from(new Set([id, ...runLegacyIds, ...legacyRecords.map((record) => record.id)]));
-      if (!runs.length && !legacyRecords.length) throw new NotFoundException('Запуск производства не найден');
+      if (!runs.length && !legacyRecords.length) throw new NotFoundException('Р—Р°РїСѓСЃРє РїСЂРѕРёР·РІРѕРґСЃС‚РІР° РЅРµ РЅР°Р№РґРµРЅ');
 
       const events = await tx.productionOperationEvent.deleteMany({ where: { runId: { in: runIds } } });
       const operations = await tx.productionUnitOperation.deleteMany({ where: { runId: { in: runIds } } });
@@ -1307,34 +1304,27 @@ export class MesService {
     return this.updateProductionRun(runId, (run, now) => {
       this.normalizeProductionRun(run);
       const op = run.operations.find((item) => item.id === operationId || item.operationId === operationId);
-      if (!op) throw new NotFoundException('Операция запуска производства не найдена');
-      if (run.status === 'done') throw new BadRequestException('Запуск уже завершен');
+      if (!op) throw new NotFoundException('РћРїРµСЂР°С†РёСЏ Р·Р°РїСѓСЃРєР° РїСЂРѕРёР·РІРѕРґСЃС‚РІР° РЅРµ РЅР°Р№РґРµРЅР°');
+      if (run.status === 'done') throw new BadRequestException('Р—Р°РїСѓСЃРє СѓР¶Рµ Р·Р°РІРµСЂС€РµРЅ');
       this.applyProductionOperationAction(run, op, action, body, now);
     });
   }
 
   async productionUnitOperationAction(runId: string, unitId: string, operationId: string, action: 'start' | 'pause' | 'resume' | 'complete', body: ProductionActionBody = {}) {
-    return this.updateProductionRun(runId, (run, now) => {
-      this.normalizeProductionRun(run);
-      const unit = run.units?.find((item) => item.unitId === unitId || String(item.unitNo) === unitId);
-      if (!unit) throw new NotFoundException('Единица запуска производства не найдена');
-      const op = unit.operations.find((item) => item.id === operationId || item.operationId === operationId);
-      if (!op) throw new NotFoundException('Операция единицы производства не найдена');
-      this.applyProductionOperationAction(run, op, action, body, now, unit);
-    });
+    return this.updateProductionUnitOperationFast(runId, unitId, operationId, action, body);
   }
 
   async releaseProductionUnitDispatch(runId: string, unitId: string, body: ProductionActionBody = {}) {
     return this.updateProductionRun(runId, (run, now) => {
       this.normalizeProductionRun(run);
       const unit = run.units?.find((item) => item.unitId === unitId || String(item.unitNo) === unitId);
-      if (!unit) throw new NotFoundException('Единица запуска производства не найдена');
+      if (!unit) throw new NotFoundException('Р•РґРёРЅРёС†Р° Р·Р°РїСѓСЃРєР° РїСЂРѕРёР·РІРѕРґСЃС‚РІР° РЅРµ РЅР°Р№РґРµРЅР°');
       const dispatch = this.findDispatchOperation(unit.operations);
-      if (!dispatch) throw new NotFoundException('Операция Диспетчеризация не найдена');
+      if (!dispatch) throw new NotFoundException('РћРїРµСЂР°С†РёСЏ Р”РёСЃРїРµС‚С‡РµСЂРёР·Р°С†РёСЏ РЅРµ РЅР°Р№РґРµРЅР°');
       if (dispatch.status === 'queued') {
         dispatch.status = 'work';
         dispatch.startedAt ||= now;
-        dispatch.lockedBy = this.productionLockOwner(body, run) || 'Диспетчер';
+        dispatch.lockedBy = this.productionLockOwner(body, run) || 'Р”РёСЃРїРµС‚С‡РµСЂ';
         dispatch.lockedAt = now;
         dispatch.lockReason = 'dispatch release';
       }
@@ -1394,7 +1384,7 @@ export class MesService {
         quantity: order.quantity,
         dueDate: order.dueDate,
         customer: order.customer,
-        priority: order.priority || 'Обычный',
+        priority: order.priority || 'РћР±С‹С‡РЅС‹Р№',
         status: order.status,
         readableStatus: order.status,
         progress,
@@ -1551,7 +1541,7 @@ export class MesService {
         id: `production-${event.id}`,
         sourceType: 'production-run',
         eventType: event.eventType,
-        title: event.operation?.name || 'Операция production run',
+        title: event.operation?.name || 'РћРїРµСЂР°С†РёСЏ production run',
         operationCode: event.operation?.operationId || '',
         orderNumber: event.run.orderNumber || null,
         runId: event.runId,
@@ -1570,7 +1560,7 @@ export class MesService {
 
   async terminalOrderOperationAction(user: AuthUser, operationId: number, action: 'start' | 'pause' | 'resume' | 'complete', body: { personId?: number; comment?: string }) {
     const op = await this.prisma.orderOperation.findUnique({ where: { id: operationId } });
-    if (!op) throw new NotFoundException('Операция заказа не найдена');
+    if (!op) throw new NotFoundException('РћРїРµСЂР°С†РёСЏ Р·Р°РєР°Р·Р° РЅРµ РЅР°Р№РґРµРЅР°');
     this.assertTerminalSection(user, op.section);
     const personId = body.personId || user.personId || undefined;
     if (action === 'start') return this.setOperationStatusById(operationId, 'work', { ...body, personId });
@@ -1584,7 +1574,7 @@ export class MesService {
       const now = new Date();
       const expiresAt = new Date(now.getTime() + TERMINAL_SELECTION_TTL_MS);
       const op = await tx.productionUnitOperation.findUnique({ where: { id: operationPk } });
-      if (!op) throw new NotFoundException('Операция единицы производства не найдена');
+      if (!op) throw new NotFoundException('РћРїРµСЂР°С†РёСЏ РµРґРёРЅРёС†С‹ РїСЂРѕРёР·РІРѕРґСЃС‚РІР° РЅРµ РЅР°Р№РґРµРЅР°');
       this.assertTerminalSection(user, op.section);
       await this.assertProductionOperationSelectable(tx, op.runId, op.unitId, op.id);
 
@@ -1612,7 +1602,7 @@ export class MesService {
 
       if (!updated.count) await this.throwProductionSelectionConflict(tx, op.id, now);
       const selected = await tx.productionUnitOperation.findUnique({ where: { id: op.id } });
-      if (!selected) throw new NotFoundException('Операция единицы производства не найдена');
+      if (!selected) throw new NotFoundException('РћРїРµСЂР°С†РёСЏ РµРґРёРЅРёС†С‹ РїСЂРѕРёР·РІРѕРґСЃС‚РІР° РЅРµ РЅР°Р№РґРµРЅР°');
       await tx.productionOperationEvent.create({
         data: {
           runId: selected.runId,
@@ -1630,20 +1620,20 @@ export class MesService {
 
   async heartbeatProductionUnitOperation(user: AuthUser, operationPk: string, body: ProductionSelectionBody = {}) {
     const token = String(body.lockToken || '').trim();
-    if (!token) throw new BadRequestException('Не передан lockToken выбранной операции');
+    if (!token) throw new BadRequestException('РќРµ РїРµСЂРµРґР°РЅ lockToken РІС‹Р±СЂР°РЅРЅРѕР№ РѕРїРµСЂР°С†РёРё');
     return this.withSerializableRetry(async (tx) => {
       const now = new Date();
       const op = await tx.productionUnitOperation.findUnique({ where: { id: operationPk } });
-      if (!op) throw new NotFoundException('Операция единицы производства не найдена');
+      if (!op) throw new NotFoundException('РћРїРµСЂР°С†РёСЏ РµРґРёРЅРёС†С‹ РїСЂРѕРёР·РІРѕРґСЃС‚РІР° РЅРµ РЅР°Р№РґРµРЅР°');
       this.assertTerminalSection(user, op.section);
       const expiresAt = new Date(now.getTime() + TERMINAL_SELECTION_TTL_MS);
       const updated = await tx.productionUnitOperation.updateMany({
         where: { id: op.id, lockToken: token, status: 'queued', lockExpiresAt: { gte: now } },
         data: { lockExpiresAt: expiresAt, lockVersion: { increment: 1 } },
       });
-      if (!updated.count) throw new ConflictException('Операция потеряла актуальность. Обновите очередь терминала.');
+      if (!updated.count) throw new ConflictException('РћРїРµСЂР°С†РёСЏ РїРѕС‚РµСЂСЏР»Р° Р°РєС‚СѓР°Р»СЊРЅРѕСЃС‚СЊ. РћР±РЅРѕРІРёС‚Рµ РѕС‡РµСЂРµРґСЊ С‚РµСЂРјРёРЅР°Р»Р°.');
       const selected = await tx.productionUnitOperation.findUnique({ where: { id: op.id } });
-      if (!selected) throw new NotFoundException('Операция единицы производства не найдена');
+      if (!selected) throw new NotFoundException('РћРїРµСЂР°С†РёСЏ РµРґРёРЅРёС†С‹ РїСЂРѕРёР·РІРѕРґСЃС‚РІР° РЅРµ РЅР°Р№РґРµРЅР°');
       await tx.productionOperationEvent.create({
         data: {
           runId: selected.runId,
@@ -1661,11 +1651,11 @@ export class MesService {
 
   async releaseProductionUnitOperationSelection(user: AuthUser, operationPk: string, body: ProductionSelectionBody = {}) {
     const token = String(body.lockToken || '').trim();
-    if (!token) throw new BadRequestException('Не передан lockToken выбранной операции');
+    if (!token) throw new BadRequestException('РќРµ РїРµСЂРµРґР°РЅ lockToken РІС‹Р±СЂР°РЅРЅРѕР№ РѕРїРµСЂР°С†РёРё');
     return this.withSerializableRetry(async (tx) => {
       const now = new Date();
       const op = await tx.productionUnitOperation.findUnique({ where: { id: operationPk } });
-      if (!op) throw new NotFoundException('Операция единицы производства не найдена');
+      if (!op) throw new NotFoundException('РћРїРµСЂР°С†РёСЏ РµРґРёРЅРёС†С‹ РїСЂРѕРёР·РІРѕРґСЃС‚РІР° РЅРµ РЅР°Р№РґРµРЅР°');
       this.assertTerminalSection(user, op.section);
       const updated = await tx.productionUnitOperation.updateMany({
         where: { id: op.id, lockToken: token, status: 'queued' },
@@ -1680,7 +1670,7 @@ export class MesService {
           lockVersion: { increment: 1 },
         },
       });
-      if (!updated.count) throw new ConflictException('Операция потеряла актуальность. Обновите очередь терминала.');
+      if (!updated.count) throw new ConflictException('РћРїРµСЂР°С†РёСЏ РїРѕС‚РµСЂСЏР»Р° Р°РєС‚СѓР°Р»СЊРЅРѕСЃС‚СЊ. РћР±РЅРѕРІРёС‚Рµ РѕС‡РµСЂРµРґСЊ С‚РµСЂРјРёРЅР°Р»Р°.');
       await tx.productionOperationEvent.create({
         data: {
           runId: op.runId,
@@ -1697,29 +1687,21 @@ export class MesService {
   }
 
   async terminalProductionUnitOperationAction(user: AuthUser, runId: string, unitId: string, operationId: string, action: 'start' | 'pause' | 'resume' | 'complete', body: ProductionActionBody = {}) {
-    return this.updateProductionRun(runId, (run, now) => {
-      this.normalizeProductionRun(run);
-      const unit = run.units?.find((item) => item.unitId === unitId || String(item.unitNo) === unitId);
-      if (!unit) throw new NotFoundException('Единица запуска производства не найдена');
-      const op = unit.operations.find((item) => item.id === operationId || item.operationId === operationId);
-      if (!op) throw new NotFoundException('Операция единицы производства не найдена');
-      this.assertTerminalSection(user, op.section);
-      if (action === 'start' && !String(body.lockToken || '').trim()) {
-        throw new ConflictException('Сначала выберите операцию в очереди терминала');
-      }
-      this.applyProductionOperationAction(run, op, action, {
-        ...body,
-        operator: body.operator || user.displayName,
-        lockedBy: body.lockedBy || user.displayName,
-        personName: body.personName || user.displayName,
-      }, now, unit);
+    return this.updateProductionUnitOperationFast(runId, unitId, operationId, action, {
+      ...body,
+      operator: body.operator || user.displayName,
+      lockedBy: body.lockedBy || user.displayName,
+      personName: body.personName || user.displayName,
+    }, {
+      assertSection: (section) => this.assertTerminalSection(user, section),
+      requireLockToken: action === 'start',
     });
   }
 
   async productionBulkUnitOperationAction(body: BulkProductionUnitActionBody, user?: AuthUser) {
     const action = body.action;
     if (!action || !['start', 'pause', 'resume', 'complete'].includes(action)) {
-      throw new BadRequestException('Укажите массовое действие: start, pause, resume или complete');
+      throw new BadRequestException('РЈРєР°Р¶РёС‚Рµ РјР°СЃСЃРѕРІРѕРµ РґРµР№СЃС‚РІРёРµ: start, pause, resume РёР»Рё complete');
     }
     const items = (body.items || [])
       .map((item) => ({
@@ -1728,10 +1710,10 @@ export class MesService {
         operationId: String(item.operationId || '').trim(),
       }))
       .filter((item) => item.runId && item.unitId && item.operationId);
-    if (items.length < 2) throw new BadRequestException('Выберите минимум две штуки для группового действия');
+    if (items.length < 2) throw new BadRequestException('Р’С‹Р±РµСЂРёС‚Рµ РјРёРЅРёРјСѓРј РґРІРµ С€С‚СѓРєРё РґР»СЏ РіСЂСѓРїРїРѕРІРѕРіРѕ РґРµР№СЃС‚РІРёСЏ');
 
     const bulkActionId = `BULK-${Date.now()}`;
-    const actor = user?.displayName || body.lockedBy || body.operator || body.personName || 'Групповая операция';
+    const actor = user?.displayName || body.lockedBy || body.operator || body.personName || 'Р“СЂСѓРїРїРѕРІР°СЏ РѕРїРµСЂР°С†РёСЏ';
     const groups = items.reduce((map, item) => {
       const group = map.get(item.runId) || [];
       group.push(item);
@@ -1747,24 +1729,24 @@ export class MesService {
         this.normalizeProductionRun(run);
         for (const item of groupItems) {
           const unit = run.units?.find((candidate) => candidate.unitId === item.unitId || String(candidate.unitNo) === item.unitId);
-          if (!unit) throw new NotFoundException(`Единица производства не найдена: ${item.unitId}`);
+          if (!unit) throw new NotFoundException(`Р•РґРёРЅРёС†Р° РїСЂРѕРёР·РІРѕРґСЃС‚РІР° РЅРµ РЅР°Р№РґРµРЅР°: ${item.unitId}`);
           const op = unit.operations.find((candidate) => candidate.id === item.operationId || candidate.operationId === item.operationId);
-          if (!op) throw new NotFoundException(`Операция единицы производства не найдена: ${item.operationId}`);
+          if (!op) throw new NotFoundException(`РћРїРµСЂР°С†РёСЏ РµРґРёРЅРёС†С‹ РїСЂРѕРёР·РІРѕРґСЃС‚РІР° РЅРµ РЅР°Р№РґРµРЅР°: ${item.operationId}`);
           if (user) this.assertTerminalSection(user, op.section);
           if (!this.isBulkGroupAllowedProductionOperation(op)) {
-            throw new BadRequestException(`Массовое действие для ${op.operationId} ${op.name} доступно только для лазера, зачистки и пробивного/координатного станка`);
+            throw new BadRequestException(`РњР°СЃСЃРѕРІРѕРµ РґРµР№СЃС‚РІРёРµ РґР»СЏ ${op.operationId} ${op.name} РґРѕСЃС‚СѓРїРЅРѕ С‚РѕР»СЊРєРѕ РґР»СЏ Р»Р°Р·РµСЂР°, Р·Р°С‡РёСЃС‚РєРё Рё РїСЂРѕР±РёРІРЅРѕРіРѕ/РєРѕРѕСЂРґРёРЅР°С‚РЅРѕРіРѕ СЃС‚Р°РЅРєР°`);
           }
           operationCode ||= op.operationId;
           section ||= op.section;
           if (op.operationId !== operationCode || op.section !== section) {
-            throw new BadRequestException('Групповое действие доступно только для одной операции и одного участка');
+            throw new BadRequestException('Р“СЂСѓРїРїРѕРІРѕРµ РґРµР№СЃС‚РІРёРµ РґРѕСЃС‚СѓРїРЅРѕ С‚РѕР»СЊРєРѕ РґР»СЏ РѕРґРЅРѕР№ РѕРїРµСЂР°С†РёРё Рё РѕРґРЅРѕРіРѕ СѓС‡Р°СЃС‚РєР°');
           }
           this.applyProductionOperationAction(run, op, action, {
             ...body,
             operator: actor,
             lockedBy: actor,
             personName: actor,
-            comment: body.comment || `Групповое действие ${bulkActionId}`,
+            comment: body.comment || `Р“СЂСѓРїРїРѕРІРѕРµ РґРµР№СЃС‚РІРёРµ ${bulkActionId}`,
           }, now, unit);
           op.lockReason = op.status === 'done' ? op.lockReason : `bulk:${bulkActionId}`;
           affected.push({ runId: run.id, unitId: unit.unitId, operationId: op.operationId, status: op.status });
@@ -1796,13 +1778,13 @@ export class MesService {
 
   async setOperationStatusById(operationId: number, status: OperationStatus, body: { personId?: number; comment?: string }) {
     const op = await this.prisma.orderOperation.findUnique({ where: { id: operationId } });
-    if (!op) throw new NotFoundException('Операция заказа не найдена');
+    if (!op) throw new NotFoundException('РћРїРµСЂР°С†РёСЏ Р·Р°РєР°Р·Р° РЅРµ РЅР°Р№РґРµРЅР°');
     return this.setOperationStatus(op.orderId, operationId, status, body);
   }
 
   async pauseOperationById(operationId: number, body: { personId?: number; comment?: string }) {
     const op = await this.prisma.orderOperation.findUnique({ where: { id: operationId } });
-    if (!op) throw new NotFoundException('Операция заказа не найдена');
+    if (!op) throw new NotFoundException('РћРїРµСЂР°С†РёСЏ Р·Р°РєР°Р·Р° РЅРµ РЅР°Р№РґРµРЅР°');
     await this.assertOrderEditable(op.orderId);
     const transition = orderOperationTransition(this.effectiveStatus(op), 'paused');
     if (transition.ok === false) throw new BadRequestException(transition.reason);
@@ -1823,7 +1805,7 @@ export class MesService {
 
   async resumeOperationById(operationId: number, body: { personId?: number; comment?: string }) {
     const op = await this.prisma.orderOperation.findUnique({ where: { id: operationId } });
-    if (!op) throw new NotFoundException('Операция заказа не найдена');
+    if (!op) throw new NotFoundException('РћРїРµСЂР°С†РёСЏ Р·Р°РєР°Р·Р° РЅРµ РЅР°Р№РґРµРЅР°');
     await this.assertOrderEditable(op.orderId);
     const transition = orderOperationTransition(this.effectiveStatus(op), 'work');
     if (transition.ok === false) throw new BadRequestException(transition.reason);
@@ -1843,7 +1825,7 @@ export class MesService {
 
   async addOperationQuality(operationId: number, body: { personId?: number; checkedQty?: number; acceptedQty?: number; defectQty?: number; defectReason?: string; comment?: string }) {
     const op = await this.prisma.orderOperation.findUnique({ where: { id: operationId } });
-    if (!op) throw new NotFoundException('Операция заказа не найдена');
+    if (!op) throw new NotFoundException('РћРїРµСЂР°С†РёСЏ Р·Р°РєР°Р·Р° РЅРµ РЅР°Р№РґРµРЅР°');
     await this.assertOrderEditable(op.orderId);
     const checkedQty = Math.max(0, Number(body.checkedQty ?? 0));
     const defectQty = Math.max(0, Number(body.defectQty ?? 0));
@@ -1889,7 +1871,7 @@ export class MesService {
     const allProgress = [...orderProgress, ...runProgress];
     const completedEvents = events.filter((event) => event.eventType === 'finish');
     const productionDynamics = this.mergeDynamics(this.groupEventsByDay(completedEvents), this.groupProductionRunsCompletedByDay(activeProductionRuns));
-    const quality = qualityRecords.length ? this.qualitySummaryFromRecords(qualityRecords) : { checked: completedEvents.length, accepted: completedEvents.length, defect: 0, defectRatePct: 0, note: 'Fallback: записей качества пока нет, завершенные операции временно считаются принятыми без брака.' };
+    const quality = qualityRecords.length ? this.qualitySummaryFromRecords(qualityRecords) : { checked: completedEvents.length, accepted: completedEvents.length, defect: 0, defectRatePct: 0, note: 'Fallback: Р·Р°РїРёСЃРµР№ РєР°С‡РµСЃС‚РІР° РїРѕРєР° РЅРµС‚, Р·Р°РІРµСЂС€РµРЅРЅС‹Рµ РѕРїРµСЂР°С†РёРё РІСЂРµРјРµРЅРЅРѕ СЃС‡РёС‚Р°СЋС‚СЃСЏ РїСЂРёРЅСЏС‚С‹РјРё Р±РµР· Р±СЂР°РєР°.' };
     const flatOps = orders.flatMap((order) => order.operations);
     const flatRunOps = activeProductionRuns.flatMap((run) => this.productionRunWorkloadOperations(this.normalizeProductionRun(run)));
     const avgProgress = allProgress.length ? Math.round(allProgress.reduce((sum, order) => sum + order.progress, 0) / allProgress.length) : 0;
@@ -1906,7 +1888,7 @@ export class MesService {
           section: op.section,
           status: this.effectiveStatus(op),
           dueDate: order.dueDate,
-          reason: this.effectiveStatus(op) === 'paused' ? 'Операция на паузе' : 'Заказ просрочен, операция не завершена',
+          reason: this.effectiveStatus(op) === 'paused' ? 'РћРїРµСЂР°С†РёСЏ РЅР° РїР°СѓР·Рµ' : 'Р—Р°РєР°Р· РїСЂРѕСЃСЂРѕС‡РµРЅ, РѕРїРµСЂР°С†РёСЏ РЅРµ Р·Р°РІРµСЂС€РµРЅР°',
         }))),
       ...activeProductionRuns.flatMap((run) => (run.units?.length ? run.units.flatMap((unit) => unit.operations.map((op) => ({ op, unit }))) : run.operations.map((op) => ({ op, unit: null as ProductionUnit | null })))
         .filter(({ op }) => op.status !== 'done' && (op.status === 'paused' || op.canStart === false || (op.blockedBy || []).length > 0))
@@ -1922,7 +1904,7 @@ export class MesService {
           section: op.section,
           status: op.status,
           blockedBy: op.blockedBy || [],
-          reason: op.status === 'paused' ? 'Операция на паузе' : (op.blockedBy?.length ? `Ожидает: ${op.blockedBy.join(', ')}` : 'Ожидает готовности предшествующих операций'),
+          reason: op.status === 'paused' ? 'РћРїРµСЂР°С†РёСЏ РЅР° РїР°СѓР·Рµ' : (op.blockedBy?.length ? `РћР¶РёРґР°РµС‚: ${op.blockedBy.join(', ')}` : 'РћР¶РёРґР°РµС‚ РіРѕС‚РѕРІРЅРѕСЃС‚Рё РїСЂРµРґС€РµСЃС‚РІСѓСЋС‰РёС… РѕРїРµСЂР°С†РёР№'),
         }))),
     ].slice(0, 80);
 
@@ -1945,11 +1927,11 @@ export class MesService {
       quality,
       riskOperations,
       keyMetrics: [
-        { label: 'Средняя готовность объектов', value: `${avgProgress}%` },
-         { label: 'Production runs без заказа', value: activeProductionRuns.length },
-        { label: 'Операций завершено', value: completedEvents.length + flatRunOps.filter((op) => op.status === 'done').length },
-        { label: 'Участков с загрузкой > 100%', value: loads.filter((load) => load.loadPct > 100).length },
-        { label: 'Качество', value: `${quality.defectRatePct}% брака` },
+        { label: 'РЎСЂРµРґРЅСЏСЏ РіРѕС‚РѕРІРЅРѕСЃС‚СЊ РѕР±СЉРµРєС‚РѕРІ', value: `${avgProgress}%` },
+         { label: 'Production runs Р±РµР· Р·Р°РєР°Р·Р°', value: activeProductionRuns.length },
+        { label: 'РћРїРµСЂР°С†РёР№ Р·Р°РІРµСЂС€РµРЅРѕ', value: completedEvents.length + flatRunOps.filter((op) => op.status === 'done').length },
+        { label: 'РЈС‡Р°СЃС‚РєРѕРІ СЃ Р·Р°РіСЂСѓР·РєРѕР№ > 100%', value: loads.filter((load) => load.loadPct > 100).length },
+        { label: 'РљР°С‡РµСЃС‚РІРѕ', value: `${quality.defectRatePct}% Р±СЂР°РєР°` },
       ],
       generatedAt: new Date().toISOString(),
     };
@@ -1973,7 +1955,7 @@ export class MesService {
         id: `order-${event.id}`,
         sourceType: 'order',
         eventType: event.eventType,
-        title: event.orderOperation?.name || 'Операция заказа',
+        title: event.orderOperation?.name || 'РћРїРµСЂР°С†РёСЏ Р·Р°РєР°Р·Р°',
         operationCode: event.orderOperation?.operationCode || '',
         orderNumber: event.order?.orderNumber || null,
         actor: event.person?.fullName || null,
@@ -1983,7 +1965,7 @@ export class MesService {
         id: `production-${event.id}`,
         sourceType: 'production-run',
         eventType: event.eventType,
-        title: event.operation?.name || 'Операция запуска',
+        title: event.operation?.name || 'РћРїРµСЂР°С†РёСЏ Р·Р°РїСѓСЃРєР°',
         operationCode: event.operation?.operationId || '',
         orderNumber: event.run?.orderNumber || null,
         runId: event.runId,
@@ -2241,6 +2223,12 @@ export class MesService {
     };
   }
 
+  private productionRunUpdateData(run: ProductionRun): Prisma.ProductionRunUncheckedUpdateInput {
+    const data = this.productionRunData(run) as Prisma.ProductionRunUncheckedUpdateInput & { id?: string };
+    delete data.id;
+    return data;
+  }
+
   private productionUnitData(runId: string, unit: ProductionUnit): Prisma.ProductionUnitUncheckedCreateInput {
     return {
       id: unit.unitId,
@@ -2251,6 +2239,12 @@ export class MesService {
       startedAt: unit.startedAt ? new Date(unit.startedAt) : null,
       completedAt: unit.completedAt ? new Date(unit.completedAt) : null,
     };
+  }
+
+  private productionUnitUpdateData(runId: string, unit: ProductionUnit): Prisma.ProductionUnitUncheckedUpdateInput {
+    const data = this.productionUnitData(runId, unit) as Prisma.ProductionUnitUncheckedUpdateInput & { id?: string };
+    delete data.id;
+    return data;
   }
 
   private productionOperationData(runId: string, unitId: string | null, op: ProductionOperation): Prisma.ProductionUnitOperationUncheckedCreateInput {
@@ -2295,6 +2289,12 @@ export class MesService {
     };
   }
 
+  private productionOperationUpdateData(runId: string, unitId: string | null, op: ProductionOperation): Prisma.ProductionUnitOperationUncheckedUpdateInput {
+    const data = this.productionOperationData(runId, unitId, op) as Prisma.ProductionUnitOperationUncheckedUpdateInput & { id?: string };
+    delete data.id;
+    return data;
+  }
+
     private productionRunFromRecord(record: {
       data: Prisma.JsonValue;
       orderId?: number | null;
@@ -2329,7 +2329,7 @@ export class MesService {
         orderUnitTo: record.orderUnitTo ?? run.orderUnitTo ?? null,
         orderBatchCode: this.simpleProductionRunBatchCode(record.orderBatchCode ?? run.orderBatchCode ?? run.batchNumber ?? null, record.orderNumber ?? run.orderNumber ?? null, record.orderBatchNo ?? run.orderBatchNo ?? null),
         batchNumber: run.batchNumber || run.id,
-        batchName: run.batchName || `${record.productName || run.productName} · ${record.quantity ?? run.quantity} шт.`,
+        batchName: run.batchName || `${record.productName || run.productName} В· ${record.quantity ?? run.quantity} С€С‚.`,
         batchCreatedBy: run.batchCreatedBy || record.operator || run.operator || null,
         batchSource: run.batchSource || (record.orderNumber || run.orderNumber ? 'order-selection' : 'manual-selection'),
         productId: record.productId || run.productId,
@@ -2548,7 +2548,7 @@ export class MesService {
     }
     const workerMap = new Map<string, any>();
     for (const row of rows) {
-      const worker = row.person || 'Не указан';
+      const worker = row.person || 'РќРµ СѓРєР°Р·Р°РЅ';
       const current = workerMap.get(worker) || { worker, operations: 0, completed: 0, normHours: 0, actualHours: 0, pauseHours: 0, acceptedQty: 0, defectQty: 0, reworkQty: 0, productivityPct: 0 };
       current.operations += 1;
       if (row.status === 'done') current.completed += 1;
@@ -2614,7 +2614,7 @@ export class MesService {
     for (const [id, next] of after.entries()) {
       const previous = before.get(id);
       if (next.status === 'work' && previous?.status === 'work') {
-        throw new ConflictException(`РћРїРµСЂР°С†РёСЏ СѓР¶Рµ РІ СЂР°Р±РѕС‚Рµ${previous.lockedBy ? `: ${previous.lockedBy}` : ''}`);
+        throw new ConflictException(`Р С›Р С—Р ВµРЎР‚Р В°РЎвЂ Р С‘РЎРЏ РЎС“Р В¶Р Вµ Р Р† РЎР‚Р В°Р В±Р С•РЎвЂљР Вµ${previous.lockedBy ? `: ${previous.lockedBy}` : ''}`);
       }
     }
   }
@@ -2768,7 +2768,7 @@ export class MesService {
   private async findProductionRun(id: string) {
     const runs = await this.readProductionRuns();
     const run = runs.find((item) => item.id === id);
-    if (!run) throw new NotFoundException('Запуск производства не найден');
+    if (!run) throw new NotFoundException('Р—Р°РїСѓСЃРє РїСЂРѕРёР·РІРѕРґСЃС‚РІР° РЅРµ РЅР°Р№РґРµРЅ');
     return run;
   }
 
@@ -2806,7 +2806,7 @@ export class MesService {
       versionId: this.importedVersionId(product),
       versionNo: 1,
       versionStatus: 'active',
-      versionComment: 'НСИ baseline',
+      versionComment: 'РќРЎР baseline',
       versionCreatedAt: product.extractedAt || productsProcesses.extractedAt,
       versionActivatedAt: product.extractedAt || productsProcesses.extractedAt,
     };
@@ -2825,7 +2825,7 @@ export class MesService {
       operationsCount: product.processSteps.length,
       totalNormHours: product.totalNormHours,
       confidence: product.confidence,
-      comment: 'НСИ baseline',
+      comment: 'РќРЎР baseline',
       createdBy: null,
       activatedBy: null,
       activatedAt: createdAt,
@@ -2872,7 +2872,7 @@ export class MesService {
 
   private findVersionInRecord(record: any, versionId: string) {
     const version = record.versions.find((item: any) => item.id === versionId || String(item.versionNo) === versionId || `v${item.versionNo}` === versionId);
-    if (!version) throw new NotFoundException('Версия техпроцесса не найдена');
+    if (!version) throw new NotFoundException('Р’РµСЂСЃРёСЏ С‚РµС…РїСЂРѕС†РµСЃСЃР° РЅРµ РЅР°Р№РґРµРЅР°');
     return version;
   }
 
@@ -2964,7 +2964,7 @@ export class MesService {
 
   private async activateNomenclatureVersion(processId: string, versionId: string, actor: string | undefined, client: Prisma.TransactionClient) {
     const version = await client.nomenclatureProcessVersion.findUnique({ where: { id: versionId } });
-    if (!version || version.processId !== processId) throw new NotFoundException('Версия техпроцесса не найдена');
+    if (!version || version.processId !== processId) throw new NotFoundException('Р’РµСЂСЃРёСЏ С‚РµС…РїСЂРѕС†РµСЃСЃР° РЅРµ РЅР°Р№РґРµРЅР°');
     const now = new Date();
     const sourceProcess = version.data as unknown as ProductProcess;
     const activeProcess = this.processWithVersionMetadata(sourceProcess, {
@@ -3036,7 +3036,7 @@ export class MesService {
           if (!confirmedProductCodeReplace) {
             throw new ConflictException({
               code: 'NOMENCLATURE_PRODUCT_CODE_EXISTS',
-              message: `Код номенклатуры ${process.productCode} уже используется. Подтвердите замену, чтобы сохранить техпроцесс как новую версию существующей номенклатуры.`,
+              message: `РљРѕРґ РЅРѕРјРµРЅРєР»Р°С‚СѓСЂС‹ ${process.productCode} СѓР¶Рµ РёСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ. РџРѕРґС‚РІРµСЂРґРёС‚Рµ Р·Р°РјРµРЅСѓ, С‡С‚РѕР±С‹ СЃРѕС…СЂР°РЅРёС‚СЊ С‚РµС…РїСЂРѕС†РµСЃСЃ РєР°Рє РЅРѕРІСѓСЋ РІРµСЂСЃРёСЋ СЃСѓС‰РµСЃС‚РІСѓСЋС‰РµР№ РЅРѕРјРµРЅРєР»Р°С‚СѓСЂС‹.`,
               existing: {
                 id: matchingProcess.id,
                 equipment: matchingProcess.equipment,
@@ -3099,27 +3099,27 @@ export class MesService {
     if (product) return product;
     const requested = keys.join(', ');
     const available = await this.availableProductProcessesText();
-    throw new NotFoundException(`Техпроцесс номенклатуры не найден для: ${requested}. Доступные техпроцессы: ${available}. Выберите номенклатуру из справочника или используйте fallback aliases: RC800, 209983, Multiholder, 231265, Печь, FURNACE-SAMPLE.`);
+    throw new NotFoundException(`РўРµС…РїСЂРѕС†РµСЃСЃ РЅРѕРјРµРЅРєР»Р°С‚СѓСЂС‹ РЅРµ РЅР°Р№РґРµРЅ РґР»СЏ: ${requested}. Р”РѕСЃС‚СѓРїРЅС‹Рµ С‚РµС…РїСЂРѕС†РµСЃСЃС‹: ${available}. Р’С‹Р±РµСЂРёС‚Рµ РЅРѕРјРµРЅРєР»Р°С‚СѓСЂСѓ РёР· СЃРїСЂР°РІРѕС‡РЅРёРєР° РёР»Рё РёСЃРїРѕР»СЊР·СѓР№С‚Рµ fallback aliases: RC800, 209983, Multiholder, 231265, РџРµС‡СЊ, FURNACE-SAMPLE.`);
   }
 
   private normalizeManualProcess(body: ManualProcessInput): ProductProcess {
     const equipment = String(body.equipment || '').trim();
     const productCode = String(body.productCode || '').trim();
-    const category = String(body.category || 'Ручная номенклатура').trim();
-    if (!equipment) throw new BadRequestException('Заполните наименование номенклатуры');
-    if (!productCode) throw new BadRequestException('Заполните код номенклатуры');
+    const category = String(body.category || 'Р СѓС‡РЅР°СЏ РЅРѕРјРµРЅРєР»Р°С‚СѓСЂР°').trim();
+    if (!equipment) throw new BadRequestException('Р—Р°РїРѕР»РЅРёС‚Рµ РЅР°РёРјРµРЅРѕРІР°РЅРёРµ РЅРѕРјРµРЅРєР»Р°С‚СѓСЂС‹');
+    if (!productCode) throw new BadRequestException('Р—Р°РїРѕР»РЅРёС‚Рµ РєРѕРґ РЅРѕРјРµРЅРєР»Р°С‚СѓСЂС‹');
     const rawSteps = Array.isArray(body.processSteps) ? body.processSteps : [];
-    if (!rawSteps.length) throw new BadRequestException('Добавьте хотя бы одну операцию техпроцесса');
+    if (!rawSteps.length) throw new BadRequestException('Р”РѕР±Р°РІСЊС‚Рµ С…РѕС‚СЏ Р±С‹ РѕРґРЅСѓ РѕРїРµСЂР°С†РёСЋ С‚РµС…РїСЂРѕС†РµСЃСЃР°');
     const seen = new Set<string>();
     const processSteps = rawSteps.map((step, index) => {
       const operationId = String(step.operationId || '').trim().toUpperCase();
       const name = String(step.name || '').trim();
       const section = String(step.section || '').trim();
-      if (!operationId) throw new BadRequestException(`Заполните ID операции в строке ${index + 1}`);
-      if (seen.has(operationId)) throw new BadRequestException(`ID операции ${operationId} повторяется`);
+      if (!operationId) throw new BadRequestException(`Р—Р°РїРѕР»РЅРёС‚Рµ ID РѕРїРµСЂР°С†РёРё РІ СЃС‚СЂРѕРєРµ ${index + 1}`);
+      if (seen.has(operationId)) throw new BadRequestException(`ID РѕРїРµСЂР°С†РёРё ${operationId} РїРѕРІС‚РѕСЂСЏРµС‚СЃСЏ`);
       seen.add(operationId);
-      if (!name) throw new BadRequestException(`Заполните наименование операции ${operationId}`);
-      if (!section) throw new BadRequestException(`Заполните участок операции ${operationId}`);
+      if (!name) throw new BadRequestException(`Р—Р°РїРѕР»РЅРёС‚Рµ РЅР°РёРјРµРЅРѕРІР°РЅРёРµ РѕРїРµСЂР°С†РёРё ${operationId}`);
+      if (!section) throw new BadRequestException(`Р—Р°РїРѕР»РЅРёС‚Рµ СѓС‡Р°СЃС‚РѕРє РѕРїРµСЂР°С†РёРё ${operationId}`);
       const previousOperationCodes = Array.isArray(step.previousOperationCodes) ? step.previousOperationCodes.map((code) => String(code || '').trim().toUpperCase()).filter(Boolean) : [];
       const nextOperationCodes = Array.isArray(step.nextOperationCodes) ? step.nextOperationCodes.map((code) => String(code || '').trim().toUpperCase()).filter(Boolean) : [];
       return {
@@ -3128,13 +3128,13 @@ export class MesService {
         level: Math.max(1, Number(step.level || 1)),
         x: Number.isFinite(Number(step.x)) ? Math.max(0, Math.round(Number(step.x))) : undefined,
         y: Number.isFinite(Number(step.y)) ? Math.max(0, Math.round(Number(step.y))) : undefined,
-        partOrAssembly: String(step.partOrAssembly || 'Общее').trim(),
+        partOrAssembly: String(step.partOrAssembly || 'РћР±С‰РµРµ').trim(),
         name,
         section,
         previousOperationCodes,
         nextOperationCodes,
         normHours: Math.max(0, Number(step.normHours || 0)),
-        sourceSheet: 'Конструктор',
+        sourceSheet: 'РљРѕРЅСЃС‚СЂСѓРєС‚РѕСЂ',
         sourceRow: index + 1,
         confidence: 'manual',
         groupCapable: this.isGroupCapableStep(step),
@@ -3153,21 +3153,21 @@ export class MesService {
       equipment,
       productCode,
       category,
-      sourceFile: 'Конструктор техпроцесса',
+      sourceFile: 'РљРѕРЅСЃС‚СЂСѓРєС‚РѕСЂ С‚РµС…РїСЂРѕС†РµСЃСЃР°',
       sourceWorkbookSheets: ['Blueprint'],
       sourceDimensions: { Blueprint: { rows: processSteps.length, columns: 11 } },
       summary: body.summary || {},
       processSteps,
       totalNormHours,
       confidence: 'manual',
-      notes: Array.isArray(body.notes) && body.notes.length ? body.notes : ['Создано вручную в конструкторе техпроцесса.'],
+      notes: Array.isArray(body.notes) && body.notes.length ? body.notes : ['РЎРѕР·РґР°РЅРѕ РІСЂСѓС‡РЅСѓСЋ РІ РєРѕРЅСЃС‚СЂСѓРєС‚РѕСЂРµ С‚РµС…РїСЂРѕС†РµСЃСЃР°.'],
       extractedAt: new Date().toISOString(),
       sourceType: 'manual',
     } as ProductProcess;
   }
 
   private slugify(value: string) {
-    const ascii = value.trim().toLowerCase().replace(/[^a-z0-9а-яё]+/gi, '-').replace(/^-+|-+$/g, '');
+    const ascii = value.trim().toLowerCase().replace(/[^a-z0-9Р°-СЏС‘]+/gi, '-').replace(/^-+|-+$/g, '');
     return ascii || `manual-${Date.now()}`;
   }
 
@@ -3176,7 +3176,7 @@ export class MesService {
     const visiting = new Set<string>();
     const visited = new Set<string>();
     const visit = (code: string, path: string[]) => {
-      if (visiting.has(code)) throw new BadRequestException(`В техпроцессе найдена циклическая связь: ${[...path, code].join(' -> ')}`);
+      if (visiting.has(code)) throw new BadRequestException(`Р’ С‚РµС…РїСЂРѕС†РµСЃСЃРµ РЅР°Р№РґРµРЅР° С†РёРєР»РёС‡РµСЃРєР°СЏ СЃРІСЏР·СЊ: ${[...path, code].join(' -> ')}`);
       if (visited.has(code)) return;
       visiting.add(code);
       for (const next of nextByCode.get(code) || []) visit(next, [...path, code]);
@@ -3200,7 +3200,7 @@ export class MesService {
   private normalizeProductionRunOrderNumber(value: unknown) {
     const orderNumber = String(value || '').trim();
     if (!orderNumber) return '';
-    if (orderNumber.length > 20) throw new BadRequestException('Номер заказа должен быть не длиннее 20 символов');
+    if (orderNumber.length > 20) throw new BadRequestException('РќРѕРјРµСЂ Р·Р°РєР°Р·Р° РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ РЅРµ РґР»РёРЅРЅРµРµ 20 СЃРёРјРІРѕР»РѕРІ');
     return orderNumber;
   }
 
@@ -3222,7 +3222,7 @@ export class MesService {
 
   private fallbackProductAliases(product: ProductProcess): string[] {
     if (product.id === 'rc800-209983') {
-      return ['RC800', '209983', 'Печь', 'Печь промышленная', 'FURNACE-SAMPLE', 'FURNACE-DEMO'];
+      return ['RC800', '209983', 'РџРµС‡СЊ', 'РџРµС‡СЊ РїСЂРѕРјС‹С€Р»РµРЅРЅР°СЏ', 'FURNACE-SAMPLE', 'FURNACE-DEMO'];
     }
     if (product.id === 'multiholder-231265') return ['Multiholder', 'Multiholder MH-6-3-TS2', '231265'];
     return [];
@@ -3238,7 +3238,7 @@ export class MesService {
       try {
         return await this.prisma.$transaction(async (tx) => {
           const run = await this.readProductionRun(id, tx);
-          if (!run) throw new NotFoundException('Запуск производства не найден');
+          if (!run) throw new NotFoundException('Р—Р°РїСѓСЃРє РїСЂРѕРёР·РІРѕРґСЃС‚РІР° РЅРµ РЅР°Р№РґРµРЅ');
           const before = this.productionOperationStateById(run);
           const now = new Date().toISOString();
           mutate(run, now);
@@ -3259,6 +3259,104 @@ export class MesService {
       }
     }
     throw new ConflictException('Production run update failed');
+  }
+
+  private async startProductionRunFast(id: string) {
+    return this.withSerializableRetry(async (tx) => {
+      const run = await this.readProductionRun(id, tx);
+      if (!run) throw new NotFoundException('Запуск производства не найден');
+      this.normalizeProductionRun(run);
+      if (run.status === 'done') throw new BadRequestException('Завершенный запуск нельзя снова запустить');
+
+      const now = new Date().toISOString();
+      run.status = 'work';
+      run.startedAt ||= now;
+
+      await tx.productionRun.update({
+        where: { id: run.id },
+        data: this.productionRunUpdateData(run),
+      });
+      await this.upsertProductionRunLegacyRecord(run, tx);
+      return this.enrichProductionRun(run);
+    });
+  }
+
+  private async updateProductionUnitOperationFast(
+    runId: string,
+    unitId: string,
+    operationId: string,
+    action: 'start' | 'pause' | 'resume' | 'complete',
+    body: ProductionActionBody = {},
+    options: { assertSection?: (section: string) => void; requireLockToken?: boolean } = {},
+  ) {
+    return this.withSerializableRetry(async (tx) => {
+      const run = await this.readProductionRun(runId, tx);
+      if (!run) throw new NotFoundException('Р•РґРёРЅРёС†Р° Р·Р°РїСѓСЃРєР° РїСЂРѕРёР·РІРѕРґСЃС‚РІР° РЅРµ РЅР°Р№РґРµРЅР°');
+      this.normalizeProductionRun(run);
+
+      const unit = run.units?.find((item) => item.unitId === unitId || String(item.unitNo) === unitId);
+      if (!unit) throw new NotFoundException('Р•РґРёРЅРёС†Р° Р·Р°РїСѓСЃРєР° РїСЂРѕРёР·РІРѕРґСЃС‚РІР° РЅРµ РЅР°Р№РґРµРЅР°');
+
+      const op = unit.operations.find((item) => item.id === operationId || item.operationId === operationId);
+      if (!op) throw new NotFoundException('РћРїРµСЂР°С†РёСЏ РµРґРёРЅРёС†С‹ РїСЂРѕРёР·РІРѕРґСЃС‚РІР° РЅРµ РЅР°Р№РґРµРЅР°');
+
+      options.assertSection?.(op.section);
+      if (options.requireLockToken && !String(body.lockToken || '').trim()) {
+        throw new ConflictException('РЎРЅР°С‡Р°Р»Р° РІС‹Р±РµСЂРёС‚Рµ РѕРїРµСЂР°С†РёСЋ РІ РѕС‡РµСЂРµРґРё С‚РµСЂРјРёРЅР°Р»Р°');
+      }
+
+      const before = {
+        status: op.status,
+        unitId: unit.unitId,
+        operationId: op.operationId,
+      };
+      const now = new Date().toISOString();
+      this.applyProductionOperationAction(run, op, action, body, now, unit);
+
+      if (before.status !== op.status && !op.shiftId && (op.status === 'work' || op.status === 'paused' || op.status === 'done')) {
+        const shift = await this.shiftForOperation(op.section, new Date(now), tx);
+        if (shift) op.shiftId = shift.id;
+      }
+
+      this.refreshProductionUnitDerivedFields(unit);
+      this.refreshRunStatus(run, now);
+
+      await tx.productionUnitOperation.update({
+        where: { id: op.id },
+        data: this.productionOperationUpdateData(run.id, unit.unitId, op),
+      });
+      await tx.productionUnit.update({
+        where: { id: unit.unitId },
+        data: this.productionUnitUpdateData(run.id, unit),
+      });
+      await tx.productionRun.update({
+        where: { id: run.id },
+        data: this.productionRunUpdateData(run),
+      });
+
+      if (before.status !== op.status) {
+        const eventType = this.productionEventType(before.status, op.status);
+        if (eventType) {
+          await tx.productionOperationEvent.create({
+            data: {
+              runId: run.id,
+              unitId: unit.unitId,
+              operationPk: op.id,
+              eventType,
+              actor: op.lockedBy || run.operator || undefined,
+              timestamp: new Date(now),
+              shiftId: op.shiftId || undefined,
+              reasonCode: op.deviationReasonCode || op.pauseReasonCode || undefined,
+              timeCategory: op.timeCategory || undefined,
+              payload: { from: before.status, to: op.status, operationId: before.operationId },
+            },
+          });
+        }
+      }
+
+      await this.upsertProductionRunLegacyRecord(run, tx);
+      return this.enrichProductionRun(run);
+    });
   }
 
   private async withSerializableRetry<T>(work: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
@@ -3352,7 +3450,7 @@ export class MesService {
     run.orderUnitTo = quantityBefore + this.productionRunQuantity(run);
     run.orderBatchCode = orderBatchCode;
     run.batchNumber = orderBatchCode;
-    run.batchName = `${orderBatchCode} · ед. ${run.orderUnitFrom}-${run.orderUnitTo}`;
+    run.batchName = `${orderBatchCode} В· РµРґ. ${run.orderUnitFrom}-${run.orderUnitTo}`;
   }
 
   private buildProductionRun(product: any, quantity: number, body: { operator?: string; priority?: ProductionPriority; priorityRank?: number; comment?: string }, order: ProductionRunOrderMeta | null): ProductionRun {
@@ -3375,7 +3473,7 @@ export class MesService {
       orderId: order?.id || null,
       orderNumber: order?.orderNumber || null,
       batchNumber: runId,
-      batchName: `${product.equipment} · ${quantity} шт.`,
+      batchName: `${product.equipment} В· ${quantity} С€С‚.`,
       batchCreatedBy: body.operator?.trim() || null,
       batchSource: order?.orderNumber ? 'order-selection' : 'manual-selection',
       productId: product.id,
@@ -3449,7 +3547,7 @@ export class MesService {
 
   private applyProductionOperationAction(run: ProductionRun, op: ProductionOperation, action: 'start' | 'pause' | 'resume' | 'complete', body: ProductionActionBody, now: string, unit?: ProductionUnit) {
     const operations = unit?.operations || run.operations;
-    if (run.status === 'done') throw new BadRequestException('Запуск уже завершен');
+    if (run.status === 'done') throw new BadRequestException('Р—Р°РїСѓСЃРє СѓР¶Рµ Р·Р°РІРµСЂС€РµРЅ');
     const dependency = action === 'start' ? this.productionDependencyInfo({ ...run, operations }, op) : undefined;
     const transition = productionOperationTransition(op.status, action, { canStart: dependency?.canStart, blockedBy: dependency?.blockedBy, lockedBy: op.lockedBy });
     if (transition.ok === false) {
@@ -3461,11 +3559,11 @@ export class MesService {
       const token = String(body.lockToken).trim();
       const expiresAt = op.lockExpiresAt ? new Date(op.lockExpiresAt).getTime() : 0;
       if (!op.lockToken || op.lockToken !== token || !Number.isFinite(expiresAt) || expiresAt < new Date(now).getTime()) {
-        throw new ConflictException('Выбор операции потерял актуальность. Обновите очередь терминала.');
+        throw new ConflictException('Р’С‹Р±РѕСЂ РѕРїРµСЂР°С†РёРё РїРѕС‚РµСЂСЏР» Р°РєС‚СѓР°Р»СЊРЅРѕСЃС‚СЊ. РћР±РЅРѕРІРёС‚Рµ РѕС‡РµСЂРµРґСЊ С‚РµСЂРјРёРЅР°Р»Р°.');
       }
     }
     if (body.expectedVersion !== undefined && Number(body.expectedVersion) !== Number(op.lockVersion || 0)) {
-      throw new ConflictException('Версия операции изменилась. Обновите очередь терминала.');
+      throw new ConflictException('Р’РµСЂСЃРёСЏ РѕРїРµСЂР°С†РёРё РёР·РјРµРЅРёР»Р°СЃСЊ. РћР±РЅРѕРІРёС‚Рµ РѕС‡РµСЂРµРґСЊ С‚РµСЂРјРёРЅР°Р»Р°.');
     }
     if (action === 'start') {
       op.status = 'work';
@@ -3529,7 +3627,7 @@ export class MesService {
   }
 
   private autoStartInitialOperation(run: ProductionRun, body: { operator?: string; comment?: string }, now: string) {
-    const owner = String(body.operator || 'Автостарт').trim();
+    const owner = String(body.operator || 'РђРІС‚РѕСЃС‚Р°СЂС‚').trim();
     const startInScope = (operations: ProductionOperation[]) => {
       const ordered = [...operations].sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
       const op = ordered.find((item) => this.isInitialOp10(item.operationId)) || ordered[0];
@@ -3559,7 +3657,7 @@ export class MesService {
   }
 
   private isInitialOp10(operationId: string) {
-    const normalized = String(operationId || '').trim().toUpperCase().replace(/[Оо]/g, 'O').replace(/[Рр]/g, 'P');
+    const normalized = String(operationId || '').trim().toUpperCase().replace(/[РћРѕ]/g, 'O').replace(/[Р СЂ]/g, 'P');
     return normalized === 'OP10' || normalized === 'OP-00001';
   }
 
@@ -3604,7 +3702,7 @@ export class MesService {
       code: run.productCode,
       quantity: run.quantity,
       dueDate: null,
-      customer: run.orderNumber ? 'Заказ Excel' : 'Без заказа',
+      customer: run.orderNumber ? 'Р—Р°РєР°Р· Excel' : 'Р‘РµР· Р·Р°РєР°Р·Р°',
       priority: run.priority || 'normal',
       priorityRank: run.priorityRank || this.productionPriorityRank(run.priority),
       status: run.status,
@@ -3673,7 +3771,7 @@ export class MesService {
       actualHours: op.actualHours || 0,
       pauseHours: 0,
       timeState: { workHours: op.actualHours || 0, pauseHours: 0, activeKind: op.status === 'work' ? 'work' : op.status === 'paused' ? 'pause' : null, activeStartedAt: op.status === 'work' ? op.startedAt : op.status === 'paused' ? op.pausedAt : null },
-      quality: { checked: 0, accepted: 0, defect: 0, defectRatePct: 0, note: 'Качество для production run не фиксируется в терминале.' },
+      quality: { checked: 0, accepted: 0, defect: 0, defectRatePct: 0, note: 'РљР°С‡РµСЃС‚РІРѕ РґР»СЏ production run РЅРµ С„РёРєСЃРёСЂСѓРµС‚СЃСЏ РІ С‚РµСЂРјРёРЅР°Р»Рµ.' },
       nextOperationCodes: op.nextOperationCodes,
       previousOperationCodes: op.previousOperationCodes,
       groupCapable: Boolean(op.groupCapable) || this.isGroupCapableProductionOperation(op),
@@ -3791,7 +3889,7 @@ export class MesService {
   }
 
   private productionRunReadableStatus(status: ProductionRunStatus) {
-    return ({ draft: 'черновик', work: 'в работе', paused: 'пауза', done: 'готово' } as Record<ProductionRunStatus, string>)[status] || status;
+    return ({ draft: 'С‡РµСЂРЅРѕРІРёРє', work: 'РІ СЂР°Р±РѕС‚Рµ', paused: 'РїР°СѓР·Р°', done: 'РіРѕС‚РѕРІРѕ' } as Record<ProductionRunStatus, string>)[status] || status;
   }
 
   private productionProgress(operations: ProductionOperation[]) {
@@ -3890,32 +3988,32 @@ export class MesService {
 
   private async assertProductionOperationSelectable(client: Prisma.TransactionClient, runId: string, unitId: string | null, operationPk: string) {
     const run = await this.readProductionRun(runId, client);
-    if (!run) throw new NotFoundException('Запуск производства не найден');
+    if (!run) throw new NotFoundException('Р—Р°РїСѓСЃРє РїСЂРѕРёР·РІРѕРґСЃС‚РІР° РЅРµ РЅР°Р№РґРµРЅ');
     const unit = unitId ? run.units?.find((item) => item.unitId === unitId) : undefined;
     const operations = unit?.operations || run.operations;
     const op = operations.find((item) => item.id === operationPk);
-    if (!op) throw new NotFoundException('Операция единицы производства не найдена');
+    if (!op) throw new NotFoundException('РћРїРµСЂР°С†РёСЏ РµРґРёРЅРёС†С‹ РїСЂРѕРёР·РІРѕРґСЃС‚РІР° РЅРµ РЅР°Р№РґРµРЅР°');
     if (run.archived || run.status === 'done' || op.status !== 'queued') {
-      throw new ConflictException('Операция потеряла актуальность. Обновите очередь терминала.');
+      throw new ConflictException('РћРїРµСЂР°С†РёСЏ РїРѕС‚РµСЂСЏР»Р° Р°РєС‚СѓР°Р»СЊРЅРѕСЃС‚СЊ. РћР±РЅРѕРІРёС‚Рµ РѕС‡РµСЂРµРґСЊ С‚РµСЂРјРёРЅР°Р»Р°.');
     }
     const dependency = this.productionDependencyInfo({ ...run, operations }, op);
     if (!dependency.canStart) {
-      throw new ConflictException(`Операция ожидает предшественников: ${dependency.blockedBy.join(', ') || 'не готова'}`);
+      throw new ConflictException(`РћРїРµСЂР°С†РёСЏ РѕР¶РёРґР°РµС‚ РїСЂРµРґС€РµСЃС‚РІРµРЅРЅРёРєРѕРІ: ${dependency.blockedBy.join(', ') || 'РЅРµ РіРѕС‚РѕРІР°'}`);
     }
   }
 
   private async throwProductionSelectionConflict(client: Prisma.TransactionClient, operationPk: string, now: Date): Promise<never> {
     const current = await client.productionUnitOperation.findUnique({ where: { id: operationPk } });
-    if (!current) throw new NotFoundException('Операция единицы производства не найдена');
-    if (current.status !== 'queued') throw new ConflictException('Операция потеряла актуальность. Обновите очередь терминала.');
+    if (!current) throw new NotFoundException('РћРїРµСЂР°С†РёСЏ РµРґРёРЅРёС†С‹ РїСЂРѕРёР·РІРѕРґСЃС‚РІР° РЅРµ РЅР°Р№РґРµРЅР°');
+    if (current.status !== 'queued') throw new ConflictException('РћРїРµСЂР°С†РёСЏ РїРѕС‚РµСЂСЏР»Р° Р°РєС‚СѓР°Р»СЊРЅРѕСЃС‚СЊ. РћР±РЅРѕРІРёС‚Рµ РѕС‡РµСЂРµРґСЊ С‚РµСЂРјРёРЅР°Р»Р°.');
     if (current.lockToken && current.lockExpiresAt && current.lockExpiresAt.getTime() >= now.getTime()) {
-      throw new ConflictException(`Операция уже выбрана другим терминалом${current.lockedBy ? `: ${current.lockedBy}` : ''}`);
+      throw new ConflictException(`РћРїРµСЂР°С†РёСЏ СѓР¶Рµ РІС‹Р±СЂР°РЅР° РґСЂСѓРіРёРј С‚РµСЂРјРёРЅР°Р»РѕРј${current.lockedBy ? `: ${current.lockedBy}` : ''}`);
     }
-    throw new ConflictException('Операция потеряла актуальность. Обновите очередь терминала.');
+    throw new ConflictException('РћРїРµСЂР°С†РёСЏ РїРѕС‚РµСЂСЏР»Р° Р°РєС‚СѓР°Р»СЊРЅРѕСЃС‚СЊ. РћР±РЅРѕРІРёС‚Рµ РѕС‡РµСЂРµРґСЊ С‚РµСЂРјРёРЅР°Р»Р°.');
   }
 
   private terminalSelectionActor(user: AuthUser, body: ProductionSelectionBody) {
-    return String(body.operator || user.displayName || user.login || 'Терминал').trim();
+    return String(body.operator || user.displayName || user.login || 'РўРµСЂРјРёРЅР°Р»').trim();
   }
 
   private productionSelectionResponse(op: any) {
@@ -4005,7 +4103,7 @@ export class MesService {
   private findDispatchOperation(operations: ProductionOperation[]) {
     const ordered = [...operations].sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
     return ordered.find((op) => this.isInitialOp10(op.operationId))
-      || ordered.find((op) => `${op.name || ''} ${op.section || ''}`.toLowerCase().includes('диспетчеризац'))
+      || ordered.find((op) => `${op.name || ''} ${op.section || ''}`.toLowerCase().includes('РґРёСЃРїРµС‚С‡РµСЂРёР·Р°С†'))
       || null;
   }
 
@@ -4020,6 +4118,12 @@ export class MesService {
     else if (unit.operations.some((op) => op.status === 'paused')) unit.status = 'paused';
     else if (unit.operations.some((op) => op.status === 'done')) unit.status = 'work';
     else unit.status = 'draft';
+  }
+
+  private refreshProductionUnitDerivedFields(unit: ProductionUnit) {
+    this.refreshUnitStatus(unit);
+    unit.startedAt = this.firstProductionOperationStart(unit.operations);
+    unit.completedAt = unit.status === 'done' ? this.lastProductionOperationFinish(unit.operations) : null;
   }
 
   private refreshRunStatus(run: ProductionRun, now?: string) {
@@ -4037,7 +4141,7 @@ export class MesService {
   }
 
   private extractKd(comment?: string | null) {
-    const match = String(comment || '').match(/КД:\s*([^·;]+)/i);
+    const match = String(comment || '').match(/РљР”:\s*([^В·;]+)/i);
     return match?.[1]?.trim() || '';
   }
 
@@ -4066,7 +4170,7 @@ export class MesService {
   }
 
   private productionLockOwner(body: { operator?: string; personName?: string; lockedBy?: string }, run: ProductionRun) {
-    return String(body.lockedBy || body.personName || body.operator || run.operator || 'Оператор участка').trim();
+    return String(body.lockedBy || body.personName || body.operator || run.operator || 'РћРїРµСЂР°С‚РѕСЂ СѓС‡Р°СЃС‚РєР°').trim();
   }
 
   private productionRunDirectorRow(run: ProductionRun) {
@@ -4165,7 +4269,7 @@ export class MesService {
     const checked = records.reduce((sum, record) => sum + record.checkedQty, 0);
     const accepted = records.reduce((sum, record) => sum + record.acceptedQty, 0);
     const defect = records.reduce((sum, record) => sum + record.defectQty, 0);
-    return { checked, accepted, defect, defectRatePct: checked ? Math.round((defect / checked) * 1000) / 10 : 0, note: records.length ? 'Качество рассчитано по QualityRecord.' : 'Записей качества пока нет.' };
+    return { checked, accepted, defect, defectRatePct: checked ? Math.round((defect / checked) * 1000) / 10 : 0, note: records.length ? 'РљР°С‡РµСЃС‚РІРѕ СЂР°СЃСЃС‡РёС‚Р°РЅРѕ РїРѕ QualityRecord.' : 'Р—Р°РїРёСЃРµР№ РєР°С‡РµСЃС‚РІР° РїРѕРєР° РЅРµС‚.' };
   }
 
   private async enrichOperation<T extends { id: number }>(op: T) {
@@ -4187,8 +4291,8 @@ export class MesService {
 
   private async assertOrderEditable(orderId: number) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
-    if (!order) throw new NotFoundException('Заказ не найден');
-    if (order.status === 'archived') throw new BadRequestException('Заказ находится в архиве и заблокирован для изменений');
+    if (!order) throw new NotFoundException('Р—Р°РєР°Р· РЅРµ РЅР°Р№РґРµРЅ');
+    if (order.status === 'archived') throw new BadRequestException('Р—Р°РєР°Р· РЅР°С…РѕРґРёС‚СЃСЏ РІ Р°СЂС…РёРІРµ Рё Р·Р°Р±Р»РѕРєРёСЂРѕРІР°РЅ РґР»СЏ РёР·РјРµРЅРµРЅРёР№');
   }
 
   private progress(operations: Array<{ status: OperationStatus; normHours: number }>) {
