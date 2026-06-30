@@ -3295,11 +3295,17 @@ export class MesService {
 
   private productionOrderScopeKey(productCode: string, order: ProductionRunOrderMeta, year: number) {
     const orderKey = order.id ? `id:${order.id}` : `number:${order.orderNumber}:${year}`;
-    return `${orderKey}:product:${productCode}`;
+    return orderKey;
   }
 
   private isSameProductionOrderRun(run: ProductionRun, productCode: string, order: ProductionRunOrderMeta | null) {
     if (!order || !run.orderNumber || run.productCode !== productCode) return false;
+    if (order.id && run.orderId) return run.orderId === order.id;
+    return run.orderNumber === order.orderNumber && this.productionRunOrderYear(run) === this.productionOrderYear(order, run.createdAt);
+  }
+
+  private isSameProductionOrderBatchRun(run: ProductionRun, order: ProductionRunOrderMeta | null) {
+    if (!order || !run.orderNumber) return false;
     if (order.id && run.orderId) return run.orderId === order.id;
     return run.orderNumber === order.orderNumber && this.productionRunOrderYear(run) === this.productionOrderYear(order, run.createdAt);
   }
@@ -3335,7 +3341,7 @@ export class MesService {
   private assignOrderBatchIdentity(run: ProductionRun, existingRuns: ProductionRun[], productCode: string, order: ProductionRunOrderMeta | null, pendingRuns: ProductionRun[] = []) {
     if (!order?.orderNumber) return;
     const year = this.productionOrderYear(order, run.createdAt);
-    const related = [...this.activeProductionRuns(existingRuns), ...pendingRuns].filter((item) => this.isSameProductionOrderRun(item, productCode, order));
+    const related = [...this.activeProductionRuns(existingRuns), ...pendingRuns].filter((item) => this.isSameProductionOrderBatchRun(item, order));
     const quantityBefore = related.reduce((sum, item) => sum + this.productionRunQuantity(item), 0);
     const orderBatchNo = Math.max(0, ...related.map((item) => this.productionRunOrderBatchNo(item))) + 1;
     const orderBatchCode = `${order.orderNumber}-${orderBatchNo}`;
