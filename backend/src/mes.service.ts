@@ -198,6 +198,32 @@ type ManualProcessInput = {
     groupCapable: boolean;
   }>>;
 };
+type ImportTechProcessExcelMode = 'dry-run' | 'draft' | 'active';
+type TechProcessImportIssue = { row?: number; field?: string; message: string };
+type TechProcessExcelPreview = {
+  ok: boolean;
+  process?: ProductProcess;
+  summary?: {
+    equipment: string;
+    productCode: string;
+    category: string;
+    operationsCount: number;
+    totalNormHours: number;
+  };
+  warnings: TechProcessImportIssue[];
+  errors: TechProcessImportIssue[];
+};
+type ParsedTechProcessExcel = {
+  input: ManualProcessInput;
+  sourceWorkbookSheets: string[];
+  sourceDimensions: Record<string, { rows: number; columns: number }>;
+};
+type ImportTechProcessExcelInput = {
+  mode?: ImportTechProcessExcelMode | string;
+  processId?: string;
+  productCode?: string;
+  replaceExistingProductCode?: boolean | string;
+};
 type NomenclatureVersionStatus = 'draft' | 'active' | 'archived';
 type NomenclatureProcessVersionSummary = {
   id: string;
@@ -282,6 +308,110 @@ export class MesService {
       data: { fileName: file.originalname, status: errors.length ? 'completed_with_errors' : 'completed', rowsTotal: rows.length, rowsCreated, rowsUpdated, errorsJson: errors },
     });
     return { batch, errors };
+  }
+
+  async previewTechProcessExcel(file?: Express.Multer.File, body: ImportTechProcessExcelInput = {}, actor?: string) {
+    const preview = this.buildTechProcessExcelPreview(file, body);
+    const batch = await this.prisma.techProcessImportBatch.create({
+      data: {
+        fileName: file?.originalname || 'techprocess.xlsx',
+        uploadedBy: actor || null,
+        status: 'preview',
+        mode: 'dry-run',
+        processId: preview.process?.id || String(body.processId || '').trim() || null,
+        productCode: preview.process?.productCode || String(body.productCode || '').trim() || null,
+        operationsCount: preview.summary?.operationsCount || 0,
+        totalNormHours: preview.summary?.totalNormHours || 0,
+        warningsJson: preview.warnings as unknown as Prisma.InputJsonValue,
+        errorsJson: preview.errors as unknown as Prisma.InputJsonValue,
+        previewJson: preview as unknown as Prisma.InputJsonValue,
+      },
+    });
+    return { ...preview, importBatch: this.techProcessImportBatchSummary(batch) };
+  }
+
+  async importTechProcessExcel(file?: Express.Multer.File, body: ImportTechProcessExcelInput = {}, actor?: string) {
+    const mode = this.normalizeTechProcessImportMode(body.mode, 'draft');
+    if (mode === 'dry-run') return this.previewTechProcessExcel(file, body, actor);
+    const preview = this.buildTechProcessExcelPreview(file, body);
+    if (!preview.ok || !preview.process) {
+      const batch = await this.prisma.techProcessImportBatch.create({
+        data: {
+          fileName: file?.originalname || 'techprocess.xlsx',
+          uploadedBy: actor || null,
+          status: 'failed',
+          mode,
+          processId: preview.process?.id || String(body.processId || '').trim() || null,
+          productCode: preview.process?.productCode || String(body.productCode || '').trim() || null,
+          operationsCount: preview.summary?.operationsCount || 0,
+          totalNormHours: preview.summary?.totalNormHours || 0,
+          warningsJson: preview.warnings as unknown as Prisma.InputJsonValue,
+          errorsJson: preview.errors as unknown as Prisma.InputJsonValue,
+          previewJson: preview as unknown as Prisma.InputJsonValue,
+        },
+      });
+      throw new BadRequestException({
+        message: 'Excel-файл техпроцесса не прошел проверку',
+        ...preview,
+        importBatch: this.techProcessImportBatchSummary(batch),
+      });
+    }
+
+    try {
+      return await this.withSerializableRetry(async (tx) => {
+        const payload: ManualProcessInput = {
+          ...preview.process!,
+          id: String(body.processId || preview.process!.id || '').trim() || preview.process!.id,
+          productCode: String(body.productCode || preview.process!.productCode || '').trim() || preview.process!.productCode,
+          activate: mode === 'active',
+          replaceExistingProductCode: this.booleanCell(body.replaceExistingProductCode),
+        };
+        const saved = await this.persistNomenclatureProcessVersionTx(preview.process!, payload, actor, mode === 'active', true, tx);
+        const record = await this.findNomenclatureProcessRecord(saved.id, tx);
+        const version = record ? this.findVersionInRecord(record, saved.versionId || String(saved.versionNo || '')) : null;
+        const versionSummary = version ? this.nomenclatureVersionSummary(version) : null;
+        const completedPreview = { ...preview, ok: true, process: saved };
+        const batch = await tx.techProcessImportBatch.create({
+          data: {
+            fileName: file?.originalname || 'techprocess.xlsx',
+            uploadedBy: actor || null,
+            status: 'completed',
+            mode,
+            processId: saved.id,
+            productCode: saved.productCode,
+            versionId: saved.versionId || null,
+            versionNo: saved.versionNo || null,
+            operationsCount: saved.processSteps.length,
+            totalNormHours: saved.totalNormHours,
+            warningsJson: preview.warnings as unknown as Prisma.InputJsonValue,
+            errorsJson: [] as unknown as Prisma.InputJsonValue,
+            previewJson: completedPreview as unknown as Prisma.InputJsonValue,
+          },
+        });
+        return {
+          ...completedPreview,
+          version: versionSummary,
+          importBatch: this.techProcessImportBatchSummary(batch),
+        };
+      });
+    } catch (error) {
+      await this.prisma.techProcessImportBatch.create({
+        data: {
+          fileName: file?.originalname || 'techprocess.xlsx',
+          uploadedBy: actor || null,
+          status: 'failed',
+          mode,
+          processId: preview.process.id,
+          productCode: preview.process.productCode,
+          operationsCount: preview.summary?.operationsCount || preview.process.processSteps.length,
+          totalNormHours: preview.summary?.totalNormHours || preview.process.totalNormHours,
+          warningsJson: preview.warnings as unknown as Prisma.InputJsonValue,
+          errorsJson: [{ message: error instanceof Error ? error.message : String(error) }] as unknown as Prisma.InputJsonValue,
+          previewJson: preview as unknown as Prisma.InputJsonValue,
+        },
+      });
+      throw error;
+    }
   }
 
   importBatches() {
@@ -3013,72 +3143,82 @@ export class MesService {
   }
 
   private async persistNomenclatureProcessVersion(body: ManualProcessInput, actor: string | undefined, defaultActivate: boolean, requireProductCodeConfirmation = false) {
-    let process = this.normalizeManualProcess(body);
+    const process = this.normalizeManualProcess(body);
+    return this.withSerializableRetry((tx) => this.persistNomenclatureProcessVersionTx(process, body, actor, defaultActivate, requireProductCodeConfirmation, tx));
+  }
+
+  private async persistNomenclatureProcessVersionTx(
+    initialProcess: ProductProcess,
+    body: ManualProcessInput,
+    actor: string | undefined,
+    defaultActivate: boolean,
+    requireProductCodeConfirmation: boolean,
+    tx: Prisma.TransactionClient,
+  ) {
+    let process = initialProcess;
     const comment = String(body.versionComment || body.comment || '').trim() || null;
     const confirmedProductCodeReplace = body.replaceExistingProductCode === true;
-    return this.withSerializableRetry(async (tx) => {
-      let existing = await tx.nomenclatureProcessRecord.findUnique({
-        where: { id: process.id },
-        include: { versions: { orderBy: [{ versionNo: 'desc' }, { createdAt: 'desc' }] } },
-      });
-      if (requireProductCodeConfirmation) {
-        const codeKeys = this.productMatchKeys(process.productCode);
-        const manualRecords = codeKeys.length
-          ? await tx.nomenclatureProcessRecord.findMany({
-              include: { versions: { orderBy: [{ versionNo: 'desc' }, { createdAt: 'desc' }] } },
-              orderBy: { updatedAt: 'desc' },
-            })
-          : [];
-        const recordWithSameCode = manualRecords.find((record: any) => this.productMatchKeys(record.productCode).some((key) => codeKeys.includes(key)));
-        const importedWithSameCode = recordWithSameCode ? undefined : this.findImportedProductProcessByCode(process.productCode);
-        const matchingProcess = recordWithSameCode || importedWithSameCode;
-        if (matchingProcess) {
-          if (!confirmedProductCodeReplace) {
-            throw new ConflictException({
-              code: 'NOMENCLATURE_PRODUCT_CODE_EXISTS',
-              message: `РљРѕРґ РЅРѕРјРµРЅРєР»Р°С‚СѓСЂС‹ ${process.productCode} СѓР¶Рµ РёСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ. РџРѕРґС‚РІРµСЂРґРёС‚Рµ Р·Р°РјРµРЅСѓ, С‡С‚РѕР±С‹ СЃРѕС…СЂР°РЅРёС‚СЊ С‚РµС…РїСЂРѕС†РµСЃСЃ РєР°Рє РЅРѕРІСѓСЋ РІРµСЂСЃРёСЋ СЃСѓС‰РµСЃС‚РІСѓСЋС‰РµР№ РЅРѕРјРµРЅРєР»Р°С‚СѓСЂС‹.`,
-              existing: {
-                id: matchingProcess.id,
-                equipment: matchingProcess.equipment,
-                productCode: matchingProcess.productCode,
-                sourceType: recordWithSameCode ? 'manual' : 'imported',
-              },
-            });
-          }
-          process = { ...process, id: matchingProcess.id };
-          existing = recordWithSameCode
-            ? recordWithSameCode
-            : await tx.nomenclatureProcessRecord.findUnique({
-                where: { id: process.id },
-                include: { versions: { orderBy: [{ versionNo: 'desc' }, { createdAt: 'desc' }] } },
-              });
-        }
-      }
-      const forceActive = !existing || !existing.activeVersionId;
-      const shouldActivate = forceActive || defaultActivate || body.activate === true;
-      const nextNo = Math.max(existing?.versionCounter || 0, ...(existing?.versions || []).map((version: any) => Number(version.versionNo || 0))) + 1;
-      if (!existing) {
-        await tx.nomenclatureProcessRecord.create({
-          data: {
-            id: process.id,
-            equipment: process.equipment,
-            productCode: process.productCode,
-            category: process.category,
-            operationsCount: process.processSteps.length,
-            totalNormHours: process.totalNormHours,
-            confidence: process.confidence,
-            versionCounter: nextNo,
-            activeVersionId: shouldActivate ? this.nomenclatureVersionId(process.id, nextNo) : null,
-            data: process as unknown as Prisma.InputJsonValue,
-          },
-        });
-      } else {
-        await tx.nomenclatureProcessRecord.update({ where: { id: process.id }, data: { versionCounter: nextNo } });
-      }
-      const versioned = await this.createNomenclatureVersionRow(process.id, process, nextNo, shouldActivate ? 'active' : 'draft', actor, comment, tx);
-      if (shouldActivate) return this.activateNomenclatureVersion(process.id, versioned.versionId!, actor, tx);
-      return versioned;
+    let existing = await tx.nomenclatureProcessRecord.findUnique({
+      where: { id: process.id },
+      include: { versions: { orderBy: [{ versionNo: 'desc' }, { createdAt: 'desc' }] } },
     });
+    if (requireProductCodeConfirmation) {
+      const codeKeys = this.productMatchKeys(process.productCode);
+      const manualRecords = codeKeys.length
+        ? await tx.nomenclatureProcessRecord.findMany({
+            include: { versions: { orderBy: [{ versionNo: 'desc' }, { createdAt: 'desc' }] } },
+            orderBy: { updatedAt: 'desc' },
+          })
+        : [];
+      const recordWithSameCode = manualRecords.find((record: any) => this.productMatchKeys(record.productCode).some((key) => codeKeys.includes(key)));
+      const importedWithSameCode = recordWithSameCode ? undefined : this.findImportedProductProcessByCode(process.productCode);
+      const matchingProcess = recordWithSameCode || importedWithSameCode;
+      if (matchingProcess) {
+        if (!confirmedProductCodeReplace) {
+          throw new ConflictException({
+            code: 'NOMENCLATURE_PRODUCT_CODE_EXISTS',
+            message: `Код номенклатуры ${process.productCode} уже используется. Подтвердите замену, чтобы сохранить техпроцесс как новую версию существующей номенклатуры.`,
+            existing: {
+              id: matchingProcess.id,
+              equipment: matchingProcess.equipment,
+              productCode: matchingProcess.productCode,
+              sourceType: recordWithSameCode ? 'manual' : 'imported',
+            },
+          });
+        }
+        process = { ...process, id: matchingProcess.id };
+        existing = recordWithSameCode
+          ? recordWithSameCode
+          : await tx.nomenclatureProcessRecord.findUnique({
+              where: { id: process.id },
+              include: { versions: { orderBy: [{ versionNo: 'desc' }, { createdAt: 'desc' }] } },
+            });
+      }
+    }
+    const forceActive = !existing || !existing.activeVersionId;
+    const shouldActivate = forceActive || defaultActivate || body.activate === true;
+    const nextNo = Math.max(existing?.versionCounter || 0, ...(existing?.versions || []).map((version: any) => Number(version.versionNo || 0))) + 1;
+    if (!existing) {
+      await tx.nomenclatureProcessRecord.create({
+        data: {
+          id: process.id,
+          equipment: process.equipment,
+          productCode: process.productCode,
+          category: process.category,
+          operationsCount: process.processSteps.length,
+          totalNormHours: process.totalNormHours,
+          confidence: process.confidence,
+          versionCounter: nextNo,
+          activeVersionId: shouldActivate ? this.nomenclatureVersionId(process.id, nextNo) : null,
+          data: process as unknown as Prisma.InputJsonValue,
+        },
+      });
+    } else {
+      await tx.nomenclatureProcessRecord.update({ where: { id: process.id }, data: { versionCounter: nextNo } });
+    }
+    const versioned = await this.createNomenclatureVersionRow(process.id, process, nextNo, shouldActivate ? 'active' : 'draft', actor, comment, tx);
+    if (shouldActivate) return this.activateNomenclatureVersion(process.id, versioned.versionId!, actor, tx);
+    return versioned;
   }
 
   private async allProductProcesses(): Promise<ProductProcess[]> {
@@ -3100,6 +3240,268 @@ export class MesService {
     const requested = keys.join(', ');
     const available = await this.availableProductProcessesText();
     throw new NotFoundException(`РўРµС…РїСЂРѕС†РµСЃСЃ РЅРѕРјРµРЅРєР»Р°С‚СѓСЂС‹ РЅРµ РЅР°Р№РґРµРЅ РґР»СЏ: ${requested}. Р”РѕСЃС‚СѓРїРЅС‹Рµ С‚РµС…РїСЂРѕС†РµСЃСЃС‹: ${available}. Р’С‹Р±РµСЂРёС‚Рµ РЅРѕРјРµРЅРєР»Р°С‚СѓСЂСѓ РёР· СЃРїСЂР°РІРѕС‡РЅРёРєР° РёР»Рё РёСЃРїРѕР»СЊР·СѓР№С‚Рµ fallback aliases: RC800, 209983, Multiholder, 231265, РџРµС‡СЊ, FURNACE-SAMPLE.`);
+  }
+
+  private buildTechProcessExcelPreview(file?: Express.Multer.File, body: ImportTechProcessExcelInput = {}): TechProcessExcelPreview {
+    if (!file?.buffer) throw new BadRequestException('Excel-файл техпроцесса не передан');
+    const warnings: TechProcessImportIssue[] = [];
+    const errors: TechProcessImportIssue[] = [];
+    try {
+      const parsed = this.techProcessExcelToManualProcess(file, body, warnings, errors);
+      if (errors.length) return { ok: false, warnings, errors };
+      const normalized = this.normalizeManualProcess(parsed.input);
+      const sourceRowByCode = new Map((parsed.input.processSteps || []).map((step) => [String(step.operationId || '').trim().toUpperCase(), Number(step.sourceRow || 0)]));
+      const process: ProductProcess = {
+        ...normalized,
+        sourceFile: file.originalname || 'techprocess.xlsx',
+        sourceWorkbookSheets: parsed.sourceWorkbookSheets,
+        sourceDimensions: parsed.sourceDimensions,
+        confidence: 'excel',
+        processSteps: normalized.processSteps.map((step) => ({
+          ...step,
+          sourceSheet: 'Operations',
+          sourceRow: sourceRowByCode.get(step.operationId) || step.sourceRow,
+          confidence: 'excel',
+        })),
+        notes: normalized.notes.length ? normalized.notes : ['Загружено из Excel-формы техпроцесса.'],
+        extractedAt: new Date().toISOString(),
+        sourceType: 'manual',
+      };
+      const validationErrors = this.validateImportedTechProcess(process);
+      errors.push(...validationErrors);
+      return { ok: errors.length === 0, process, summary: this.techProcessImportSummary(process), warnings, errors };
+    } catch (error) {
+      errors.push({ message: error instanceof Error ? error.message : String(error) });
+      return { ok: false, warnings, errors };
+    }
+  }
+
+  private techProcessExcelToManualProcess(file: Express.Multer.File, body: ImportTechProcessExcelInput, warnings: TechProcessImportIssue[], errors: TechProcessImportIssue[]): ParsedTechProcessExcel {
+    const workbook = this.readTechProcessWorkbook(file);
+    const processRows = this.sheetRows(workbook, 'Process', 0);
+    const operationRows = this.sheetRows(workbook, 'Operations', 1);
+    const header = processRows.find((row) => this.rowHasAnyValue(row));
+    if (!header) errors.push({ field: 'Process', message: 'Лист Process должен содержать строку с реквизитами техпроцесса' });
+    if (!operationRows.length) errors.push({ field: 'Operations', message: 'Лист Operations должен содержать операции техпроцесса' });
+
+    const sourceDimensions = Object.fromEntries(workbook.SheetNames.map((name) => {
+      const sheet = workbook.Sheets[name];
+      const range = sheet?.['!ref'] ? XLSX.utils.decode_range(sheet['!ref']) : null;
+      return [name, { rows: range ? range.e.r + 1 : 0, columns: range ? range.e.c + 1 : 0 }];
+    }));
+
+    const equipment = this.techCell(header || {}, 'equipment', 'Номенклатура', 'Изделие', 'Наименование');
+    const productCode = String(body.productCode || this.techCell(header || {}, 'productCode', 'Код', 'КодИзделия', 'Код номенклатуры')).trim();
+    const processId = String(body.processId || this.techCell(header || {}, 'processId', 'ID', 'ID процесса', 'Идентификатор')).trim();
+    const category = this.techCell(header || {}, 'category', 'Категория') || 'Ручная номенклатура';
+    const versionComment = this.techCell(header || {}, 'versionComment', 'Комментарий версии', 'Комментарий');
+    const notes = this.splitNotes(this.techCell(header || {}, 'notes', 'Примечания', 'Заметки'));
+    if (!equipment) errors.push({ field: 'equipment', message: 'На листе Process не заполнено наименование номенклатуры' });
+    if (!productCode) errors.push({ field: 'productCode', message: 'На листе Process не заполнен код номенклатуры' });
+
+    const parsedRows = operationRows
+      .map((row, index) => ({ row, rowNumber: index + 2 }))
+      .filter(({ row }) => this.rowHasAnyValue(row));
+    const steps = parsedRows.map(({ row, rowNumber }, rowIndex) => {
+      const operationId = this.techCell(row, 'operationId', 'Операция', 'Код операции', 'ID операции').toUpperCase();
+      const name = this.techCell(row, 'name', 'Наименование операции');
+      const section = this.techCell(row, 'section', 'Участок');
+      if (!operationId) errors.push({ row: rowNumber, field: 'operationId', message: 'Не заполнен код операции' });
+      if (!name) errors.push({ row: rowNumber, field: 'name', message: 'Не заполнено наименование операции' });
+      if (!section) errors.push({ row: rowNumber, field: 'section', message: 'Не заполнен участок операции' });
+      return {
+        sequence: this.numberCell(this.techRawCell(row, 'sequence', 'Порядок', '№', 'Номер'), rowIndex + 1),
+        operationId,
+        level: Math.max(1, this.numberCell(this.techRawCell(row, 'level', 'Уровень'), 1)),
+        x: this.optionalNumberCell(this.techRawCell(row, 'x', 'X')),
+        y: this.optionalNumberCell(this.techRawCell(row, 'y', 'Y')),
+        partOrAssembly: this.techCell(row, 'partOrAssembly', 'Деталь/узел', 'Деталь', 'Узел') || 'Общее',
+        name,
+        section,
+        previousOperationCodes: this.splitOperationCodes(this.techRawCell(row, 'previousOperationCodes', 'Предыдущие', 'Предшественники')),
+        nextOperationCodes: this.splitOperationCodes(this.techRawCell(row, 'nextOperationCodes', 'Следующие', 'Последующие')),
+        normHours: Math.max(0, this.numberCell(this.techRawCell(row, 'normHours', 'Норма', 'Норма ч', 'Норма, ч'), 0)),
+        sourceRow: rowNumber,
+        confidence: 'excel',
+        groupCapable: this.booleanCell(this.techRawCell(row, 'groupCapable', 'Групповая', 'Групповая операция')),
+      };
+    }).sort((a, b) => a.sequence - b.sequence || a.sourceRow - b.sourceRow);
+
+    this.validateAndSyncImportedStepLinks(steps, warnings, errors);
+    return {
+      input: {
+        id: processId || undefined,
+        equipment,
+        productCode,
+        category,
+        versionComment,
+        notes,
+        summary: { importSource: file.originalname || 'techprocess.xlsx' },
+        processSteps: steps,
+      },
+      sourceWorkbookSheets: workbook.SheetNames,
+      sourceDimensions,
+    };
+  }
+
+  private readTechProcessWorkbook(file: Express.Multer.File) {
+    try {
+      return XLSX.read(file.buffer, { type: 'buffer', cellDates: true });
+    } catch {
+      throw new BadRequestException('Не удалось прочитать Excel-файл техпроцесса');
+    }
+  }
+
+  private sheetRows(workbook: XLSX.WorkBook, preferredName: string, fallbackIndex: number): ExcelRow[] {
+    const sheetName = workbook.SheetNames.find((name) => this.normalizeExcelHeader(name) === this.normalizeExcelHeader(preferredName)) || workbook.SheetNames[fallbackIndex];
+    const sheet = sheetName ? workbook.Sheets[sheetName] : null;
+    return sheet ? XLSX.utils.sheet_to_json<ExcelRow>(sheet, { defval: '' }) : [];
+  }
+
+  private validateAndSyncImportedStepLinks(steps: Array<NonNullable<ManualProcessInput['processSteps']>[number]>, warnings: TechProcessImportIssue[], errors: TechProcessImportIssue[]) {
+    const byCode = new Map<string, NonNullable<ManualProcessInput['processSteps']>[number]>();
+    for (const step of steps) {
+      const code = String(step.operationId || '').trim().toUpperCase();
+      if (!code) continue;
+      if (byCode.has(code)) errors.push({ row: Number(step.sourceRow || 0), field: 'operationId', message: `Код операции ${code} повторяется` });
+      byCode.set(code, step);
+    }
+    for (const step of steps) {
+      const code = String(step.operationId || '').trim().toUpperCase();
+      for (const field of ['previousOperationCodes', 'nextOperationCodes'] as const) {
+        const codes = Array.isArray(step[field]) ? step[field] as string[] : [];
+        for (const target of codes) {
+          if (target === code) errors.push({ row: Number(step.sourceRow || 0), field, message: `Операция ${code} ссылается сама на себя` });
+          if (!byCode.has(target)) errors.push({ row: Number(step.sourceRow || 0), field, message: `Операция ${code} ссылается на отсутствующую операцию ${target}` });
+        }
+      }
+    }
+    if (errors.length) return;
+    for (const step of steps) {
+      const code = String(step.operationId || '').trim().toUpperCase();
+      const previous = new Set(step.previousOperationCodes || []);
+      const next = new Set(step.nextOperationCodes || []);
+      for (const previousCode of previous) {
+        const previousStep = byCode.get(previousCode);
+        if (previousStep && !(previousStep.nextOperationCodes || []).includes(code)) {
+          previousStep.nextOperationCodes = [...(previousStep.nextOperationCodes || []), code];
+          warnings.push({ row: Number(step.sourceRow || 0), field: 'previousOperationCodes', message: `Связь ${previousCode} -> ${code} добавлена в исходящие связи операции ${previousCode}` });
+        }
+      }
+      for (const nextCode of next) {
+        const nextStep = byCode.get(nextCode);
+        if (nextStep && !(nextStep.previousOperationCodes || []).includes(code)) {
+          nextStep.previousOperationCodes = [...(nextStep.previousOperationCodes || []), code];
+          warnings.push({ row: Number(step.sourceRow || 0), field: 'nextOperationCodes', message: `Связь ${code} -> ${nextCode} добавлена во входящие связи операции ${nextCode}` });
+        }
+      }
+    }
+    for (const step of steps) {
+      step.previousOperationCodes = Array.from(new Set(step.previousOperationCodes || []));
+      step.nextOperationCodes = Array.from(new Set(step.nextOperationCodes || []));
+    }
+    const cycle = this.findImportedProcessCycle(steps);
+    if (cycle.length) errors.push({ field: 'nextOperationCodes', message: `В техпроцессе найден цикл: ${cycle.join(' -> ')}` });
+  }
+
+  private findImportedProcessCycle(steps: Array<Pick<NonNullable<ManualProcessInput['processSteps']>[number], 'operationId' | 'nextOperationCodes'>>) {
+    const nextByCode = new Map(steps.map((step) => [String(step.operationId || '').trim().toUpperCase(), step.nextOperationCodes || []]));
+    const visiting = new Set<string>();
+    const visited = new Set<string>();
+    const visit = (code: string, path: string[]): string[] => {
+      if (visiting.has(code)) return [...path, code];
+      if (visited.has(code)) return [];
+      visiting.add(code);
+      for (const next of nextByCode.get(code) || []) {
+        const cycle = visit(next, [...path, code]);
+        if (cycle.length) return cycle;
+      }
+      visiting.delete(code);
+      visited.add(code);
+      return [];
+    };
+    for (const code of nextByCode.keys()) {
+      const cycle = visit(code, []);
+      if (cycle.length) return cycle;
+    }
+    return [];
+  }
+
+  private validateImportedTechProcess(process: ProductProcess): TechProcessImportIssue[] {
+    return process.processSteps.length ? [] : [{ field: 'Operations', message: 'Техпроцесс должен содержать хотя бы одну операцию' }];
+  }
+
+  private techProcessImportSummary(process: ProductProcess) {
+    return {
+      equipment: process.equipment,
+      productCode: process.productCode,
+      category: process.category,
+      operationsCount: process.processSteps.length,
+      totalNormHours: process.totalNormHours,
+    };
+  }
+
+  private techProcessImportBatchSummary(batch: any) {
+    return {
+      id: batch.id,
+      status: batch.status,
+      mode: batch.mode,
+      fileName: batch.fileName,
+      uploadedAt: batch.uploadedAt instanceof Date ? batch.uploadedAt.toISOString() : String(batch.uploadedAt),
+    };
+  }
+
+  private normalizeTechProcessImportMode(value: unknown, fallback: ImportTechProcessExcelMode): ImportTechProcessExcelMode {
+    const mode = String(value || fallback).trim();
+    return mode === 'active' || mode === 'draft' || mode === 'dry-run' ? mode : fallback;
+  }
+
+  private splitOperationCodes(value: unknown) {
+    return Array.from(new Set(String(value || '').split(/[;,\n\r|]+/).map((item) => item.trim().toUpperCase()).filter(Boolean)));
+  }
+
+  private splitNotes(value: unknown) {
+    return String(value || '').split(/[;\n\r]+/).map((item) => item.trim()).filter(Boolean);
+  }
+
+  private booleanCell(value: unknown) {
+    if (typeof value === 'boolean') return value;
+    const text = String(value || '').trim().toLowerCase();
+    return ['1', 'true', 'yes', 'y', 'да', 'истина'].includes(text);
+  }
+
+  private numberCell(value: unknown, fallback: number) {
+    if (value === null || value === undefined || value === '') return fallback;
+    const normalized = String(value).replace(',', '.').trim();
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }
+
+  private optionalNumberCell(value: unknown) {
+    if (value === null || value === undefined || value === '') return undefined;
+    const parsed = this.numberCell(value, Number.NaN);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+
+  private techCell(row: ExcelRow, ...names: string[]) {
+    const value = this.techRawCell(row, ...names);
+    return value == null ? '' : String(value).trim();
+  }
+
+  private techRawCell(row: ExcelRow, ...names: string[]) {
+    const wanted = new Set(names.map((name) => this.normalizeExcelHeader(name)));
+    for (const [key, value] of Object.entries(row || {})) {
+      if (wanted.has(this.normalizeExcelHeader(key)) && value !== undefined && value !== '') return value;
+    }
+    return '';
+  }
+
+  private normalizeExcelHeader(value: unknown) {
+    return String(value || '').trim().toLowerCase().replace(/ё/g, 'е').replace(/[\s_\-.,:;№/\\]+/g, '');
+  }
+
+  private rowHasAnyValue(row: ExcelRow) {
+    return Object.values(row || {}).some((value) => String(value ?? '').trim() !== '');
   }
 
   private normalizeManualProcess(body: ManualProcessInput): ProductProcess {
@@ -3657,7 +4059,7 @@ export class MesService {
   }
 
   private isInitialOp10(operationId: string) {
-    const normalized = String(operationId || '').trim().toUpperCase().replace(/[РћРѕ]/g, 'O').replace(/[Р СЂ]/g, 'P');
+    const normalized = String(operationId || '').trim().toUpperCase().replace(/[ОO]/g, 'O').replace(/[РP]/g, 'P');
     return normalized === 'OP10' || normalized === 'OP-00001';
   }
 
@@ -4103,7 +4505,10 @@ export class MesService {
   private findDispatchOperation(operations: ProductionOperation[]) {
     const ordered = [...operations].sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
     return ordered.find((op) => this.isInitialOp10(op.operationId))
-      || ordered.find((op) => `${op.name || ''} ${op.section || ''}`.toLowerCase().includes('РґРёСЃРїРµС‚С‡РµСЂРёР·Р°С†'))
+      || ordered.find((op) => {
+        const text = `${op.operationId || ''} ${op.name || ''} ${op.section || ''}`.toLowerCase();
+        return text.includes('диспетчеризац') || text.includes('dispatch');
+      })
       || null;
   }
 

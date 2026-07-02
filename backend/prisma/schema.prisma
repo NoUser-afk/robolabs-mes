@@ -206,6 +206,30 @@ model ImportBatch {
   errorsJson  Json?
 }
 
+model TechProcessImportBatch {
+  id              Int      @id @default(autoincrement())
+  fileName        String
+  uploadedAt      DateTime @default(now())
+  uploadedBy      String?
+  status          String
+  mode            String
+  processId       String?
+  productCode     String?
+  versionId       String?
+  versionNo       Int?
+  operationsCount Int      @default(0)
+  totalNormHours  Float    @default(0)
+  warningsJson    Json?
+  errorsJson      Json?
+  previewJson     Json?
+
+  @@index([uploadedAt])
+  @@index([processId])
+  @@index([productCode])
+  @@index([versionId])
+  @@index([status])
+}
+
 model SectionCapacity {
   id             Int    @id @default(autoincrement())
   section        String

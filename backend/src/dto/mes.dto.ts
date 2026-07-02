@@ -24,3 +24,10 @@ export type DeviationReasonBody = { code?: string; name?: string; category?: str
 export type QualityBody = { personId?: number; checkedQty?: number; acceptedQty?: number; defectQty?: number; defectReason?: string; comment?: string };
 export type PersonBody = { fullName: string; section: string };
 export type SaveNomenclatureProcessBody = Record<string, unknown>;
+export type ImportTechProcessExcelMode = 'dry-run' | 'draft' | 'active';
+export type ImportTechProcessExcelBody = {
+  mode?: ImportTechProcessExcelMode | string;
+  processId?: string;
+  productCode?: string;
+  replaceExistingProductCode?: boolean | string;
+};

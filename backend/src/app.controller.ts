@@ -13,6 +13,7 @@ import type {
   DeviationReasonBody,
   LaunchProductionBatchBody,
   LaunchProductionBody,
+  ImportTechProcessExcelBody,
   OperationActionBody,
   PersonBody,
   ProductionOperationActionBody,
@@ -214,6 +215,20 @@ export class AppController {
   @Get('import/batches')
   importBatches() {
     return this.nomenclatureService.importBatches();
+  }
+
+  @Roles('technologist', 'admin')
+  @Post('import/techprocess-excel/preview')
+  @UseInterceptors(FileInterceptor('file'))
+  previewTechProcessExcel(@Req() req: AuthRequest, @UploadedFile() file: Express.Multer.File, @Body() body: ImportTechProcessExcelBody) {
+    return this.nomenclatureService.previewTechProcessExcel(file, body, req.user?.displayName || req.user?.login);
+  }
+
+  @Roles('technologist', 'admin')
+  @Post('import/techprocess-excel')
+  @UseInterceptors(FileInterceptor('file'))
+  importTechProcessExcel(@Req() req: AuthRequest, @UploadedFile() file: Express.Multer.File, @Body() body: ImportTechProcessExcelBody) {
+    return this.nomenclatureService.importTechProcessExcel(file, body, req.user?.displayName || req.user?.login);
   }
 
   @Get('orders')

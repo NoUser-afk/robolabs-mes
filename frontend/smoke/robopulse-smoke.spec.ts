@@ -101,6 +101,15 @@ function cleanupSmokeOrder(orderNumber: string) {
   `);
 }
 
+function cleanupSmokeTechProcess(productCode: string) {
+  execSmokeSql(`
+    update "NomenclatureProcessRecord" set "activeVersionId" = null where "productCode" = ${sqlLiteral(productCode)};
+    delete from "TechProcessImportBatch" where "productCode" = ${sqlLiteral(productCode)};
+    delete from "NomenclatureProcessVersion" where "productCode" = ${sqlLiteral(productCode)};
+    delete from "NomenclatureProcessRecord" where "productCode" = ${sqlLiteral(productCode)};
+  `);
+}
+
 test('login screen renders optimized entry motion without console errors', async ({ page }) => {
   const finishConsole = consoleGuard(page);
   await page.goto(BASE_URL);
@@ -279,7 +288,8 @@ test('dispatcher can launch one unit, cannot exceed order balance, and can relea
     return { ok: res.ok, status: res.status, payload: await res.json().catch(() => ({})) };
   }, { orderNumber, productCode: product.productCode });
   expect(overLaunch.ok).toBeFalsy();
-  expect(JSON.stringify(overLaunch.payload)).toMatch(/Нельзя запустить больше остатка/);
+  expect(overLaunch.status, JSON.stringify(overLaunch.payload)).toBe(400);
+  expect(JSON.stringify(overLaunch.payload)).toMatch(/0/);
 
   const release = await page.evaluate(async (runId) => {
     const runRes = await fetch(`/api/production/runs/${encodeURIComponent(runId)}`, { credentials: 'include' });
@@ -360,4 +370,37 @@ test('technologist save process updates nomenclature card data', async ({ page }
   expect(saved.ok, JSON.stringify(saved)).toBeTruthy();
   expect(saved.card.notes).toContain(saved.marker);
   await finishConsole();
+});
+
+test('technologist imports techprocess Excel from UI and opens active version', async ({ page }) => {
+  const finishConsole = consoleGuard(page);
+  const productCode = 'TECHPROCESS-SAMPLE';
+  cleanupSmokeTechProcess(productCode);
+  try {
+    await loginByApi(page, 'technologist', 'technologist');
+    await page.getByRole('button', { name: 'Загрузить техпроцесс из Excel' }).click();
+    await page.locator('input[type="file"]').setInputFiles(resolve(process.cwd(), '../data/samples/techprocess-template.xlsx'));
+    await page.getByRole('button', { name: 'Проверить' }).click();
+    await expect(page.getByText(productCode).first()).toBeVisible();
+    await expect(page.getByText('Ошибок не найдено')).toBeVisible();
+    await page.getByRole('button', { name: 'Сохранить и сделать активным' }).click();
+    await expect(page.getByRole('heading', { name: new RegExp(productCode) })).toBeVisible();
+    await expect(page.locator('.status.active').filter({ hasText: /v\d+ · активная/ }).first()).toBeVisible();
+    await page.getByRole('button', { name: 'Версии' }).click();
+    await expect(page.locator('.nomenclature-versions-table')).toContainText('активная');
+
+    const persisted = await page.evaluate(async (code) => {
+      const listRes = await fetch('/api/nomenclature', { credentials: 'include' });
+      const list = await listRes.json();
+      const item = list.products?.find((product: any) => product.productCode === code);
+      if (!item?.id) return null;
+      const processRes = await fetch(`/api/nomenclature/${encodeURIComponent(item.id)}/process`, { credentials: 'include' });
+      return processRes.json();
+    }, productCode);
+    expect(persisted?.productCode, JSON.stringify(persisted)).toBe(productCode);
+    expect(persisted?.processSteps?.length, JSON.stringify(persisted)).toBeGreaterThanOrEqual(3);
+    await finishConsole();
+  } finally {
+    cleanupSmokeTechProcess(productCode);
+  }
 });

@@ -16,6 +16,22 @@ export type DirectorDashboardData = { kpi: { orders: number; productionRuns?: nu
 export type NomenclatureItem = { id: string; equipment: string; productCode: string; category: string; operationsCount: number; totalNormHours: number; confidence: string; notes?: string[]; sourceType?: string; activeVersionId?: string | null; versionId?: string | null; versionNo?: number | null; versionStatus?: string | null; versionComment?: string | null };
 export type NomenclatureProcessVersion = { id: string; processId: string; versionNo: number; status: 'draft' | 'active' | 'archived'; equipment: string; productCode: string; category: string; operationsCount: number; totalNormHours: number; confidence: string; comment?: string | null; createdBy?: string | null; activatedBy?: string | null; activatedAt?: string | null; createdAt: string; updatedAt: string };
 export type NomenclatureProcessVersions = { processId: string; activeVersionId?: string | null; versionCounter: number; versions: NomenclatureProcessVersion[]; activeVersion?: NomenclatureProcessVersion | null };
+export type TechProcessExcelImportIssue = { row?: number; field?: string; message: string };
+export type TechProcessExcelImportBatch = { id: number; status: string; mode: 'dry-run' | 'draft' | 'active'; fileName: string; uploadedAt: string };
+export type TechProcessExcelImportPreview = {
+  ok: boolean;
+  process?: ProductProcess;
+  summary?: { equipment: string; productCode: string; category: string; operationsCount: number; totalNormHours: number };
+  warnings: TechProcessExcelImportIssue[];
+  errors: TechProcessExcelImportIssue[];
+  importBatch?: TechProcessExcelImportBatch;
+};
+export type TechProcessExcelImportResult = TechProcessExcelImportPreview & {
+  ok: true;
+  process: ProductProcess;
+  version: NomenclatureProcessVersion;
+  importBatch: TechProcessExcelImportBatch;
+};
 export type ReferenceSection = { id: number; name: string; isActive?: boolean; terminalLogin?: string | null };
 export type ReferenceOperationRef = { id: number; operationCode: string; name: string; defaultSection?: string | null; defaultNormHours?: number | null; partOrAssembly?: string | null; isActive?: boolean };
 export type ReferenceData = { sections: ReferenceSection[]; operations: ReferenceOperationRef[] };

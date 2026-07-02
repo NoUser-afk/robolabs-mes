@@ -14,3 +14,19 @@
 - `comment`: `RoboPulse MES: 3 печи, заказ 0000001`
 
 Импорт выполняется через вкладку `Импорт Excel` текущего интерфейса. Backend ожидает первый лист `.xlsx`/`.xls` с колонками `orderNumber`, `productCode`, `productName`, `quantity`, `dueDate`, `customer`, `priority`, `comment`; обязательны `orderNumber`, `productCode`, `quantity`.
+
+## Техпроцессы Excel
+
+Файл `techprocess-template.xlsx` — шаблон загрузки технологического процесса номенклатуры.
+
+Workbook содержит два листа:
+
+- `Process` — одна строка с реквизитами техпроцесса: `equipment`, `productCode`, `processId`, `category`, `versionComment`, `notes`, `activate`.
+- `Operations` — операции маршрута: `sequence`, `operationId`, `name`, `section`, `level`, `partOrAssembly`, `normHours`, `previousOperationCodes`, `nextOperationCodes`, `groupCapable`, `x`, `y`.
+
+Обязательные поля:
+
+- на листе `Process`: `equipment`, `productCode`;
+- на листе `Operations`: `operationId`, `name`, `section`.
+
+Связи операций задаются через `previousOperationCodes` и/или `nextOperationCodes`, несколько кодов разделяются `,`, `;` или переносом строки. Импорт техпроцессов выполняется в интерфейсе номенклатуры через кнопку `Загрузить техпроцесс из Excel`: сначала проверка, затем сохранение черновика или сохранение с активацией версии.

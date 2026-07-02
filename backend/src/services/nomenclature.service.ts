@@ -1,12 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { MesService } from '../mes.service';
-import type { SaveNomenclatureProcessBody } from '../dto/mes.dto';
+import type { ImportTechProcessExcelBody, SaveNomenclatureProcessBody } from '../dto/mes.dto';
 
 @Injectable()
 export class NomenclatureService {
   constructor(private readonly mes: MesService) {}
 
   importOrdersExcel(file: Express.Multer.File) { return this.mes.importOrdersExcel(file); }
+  previewTechProcessExcel(file: Express.Multer.File, body: ImportTechProcessExcelBody, actor?: string) { return this.mes.previewTechProcessExcel(file, body, actor); }
+  importTechProcessExcel(file: Express.Multer.File, body: ImportTechProcessExcelBody, actor?: string) { return this.mes.importTechProcessExcel(file, body, actor); }
   importBatches() { return this.mes.importBatches(); }
   nomenclature(category?: string) { return this.mes.nomenclature(category); }
   nomenclatureCategories() { return this.mes.nomenclatureCategories(); }

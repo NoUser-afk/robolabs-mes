@@ -84,7 +84,7 @@ import {
   statusLabel,
 } from './components/common';
 import { DirectorDashboard } from './features/director';
-import { TechProcessBuilder } from './features/tech-process';
+import { TechProcessBuilder, TechProcessExcelImport } from './features/tech-process';
 import { TerminalWorkspace, WorkCenterTerminal } from './features/terminal';
 import { isCapacitorShellOrigin } from './mobile/capacitor';
 import { clearStoredServerUrl, hasServerSetupMarker, openTerminalServerSetup, readStoredServerUrl, redirectToTerminalServer, saveStoredServerUrl, validateAndNormalizeServerUrl } from './mobile/server-url';
@@ -1386,6 +1386,7 @@ function NomenclatureProcesses({ user, onOpen }: { user: AuthUser; onOpen: (id: 
   const [categories, setCategories] = useState<string[]>([]);
   const [category, setCategory] = useState('');
   const [query, setQuery] = useState('');
+  const [importOpen, setImportOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const canEdit = user.role === 'technologist' || user.role === 'dispatcher' || user.role === 'admin';
@@ -1393,10 +1394,17 @@ function NomenclatureProcesses({ user, onOpen }: { user: AuthUser; onOpen: (id: 
   useEffect(() => { let ignore = false; setLoading(true); getJson<{ products: NomenclatureItem[]; categories: string[] }>(`${API}/nomenclature${category ? `?category=${encodeURIComponent(category)}` : ''}`).then(json => { if (ignore) return; setItems(json.products); setCategories(json.categories); }).catch(e => setError(e.message)).finally(() => !ignore && setLoading(false)); return () => { ignore = true; }; }, [category]);
   const normalizedQuery = query.trim().toLowerCase();
   const filteredItems = normalizedQuery ? items.filter(item => `${item.productCode} ${item.equipment} ${item.category}`.toLowerCase().includes(normalizedQuery)) : items;
+  if (importOpen) return <>
+    <PageTitle title="Загрузка техпроцесса из Excel" subtitle="Проверка, история импорта и создание версии техпроцесса номенклатуры." />
+    <section className="card nomenclature-card-full">
+      <div className="card-head"><button className="light-btn" onClick={()=>setImportOpen(false)}>Назад к номенклатуре</button><h2>Excel-форма техпроцесса</h2></div>
+      <TechProcessExcelImport onImported={(process)=>onOpen(process.id)} />
+    </section>
+  </>;
   return <>
-    <PageTitle title="Номенклатура" subtitle="Карточка номенклатуры из НСИ и техпроцесс изготовления. Пока только чтение." />
+    <PageTitle title="Номенклатура" subtitle="Карточка номенклатуры, версии техпроцессов и загрузка техпроцессов из Excel." />
     {error && <div className="alert">{error}</div>}{loading && <div className="loading">Загрузка номенклатуры...</div>}
-    <section className="card nomenclature-list-card"><div className="filters nomenclature-filters"><select name="nomenclature-category" aria-label="Категория номенклатуры" value={category} onChange={e=>setCategory(e.target.value)}><option value="">Все категории</option>{categories.map(c=><option key={c}>{c}</option>)}</select><input name="nomenclature-search" aria-label="Поиск номенклатуры" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Поиск по коду или наименованию" />{canEdit && <button onClick={createNew}>{'\u041d\u043e\u0432\u0430\u044f \u043d\u043e\u043c\u0435\u043d\u043a\u043b\u0430\u0442\u0443\u0440\u0430'}</button>}</div><NomenclatureProcessTable items={filteredItems} selectedId="" onSelect={onOpen} /></section>
+    <section className="card nomenclature-list-card"><div className="filters nomenclature-filters"><select name="nomenclature-category" aria-label="Категория номенклатуры" value={category} onChange={e=>setCategory(e.target.value)}><option value="">Все категории</option>{categories.map(c=><option key={c}>{c}</option>)}</select><input name="nomenclature-search" aria-label="Поиск номенклатуры" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Поиск по коду или наименованию" />{canEdit && <button className="light-btn" onClick={()=>setImportOpen(true)}>Загрузить техпроцесс из Excel</button>}{canEdit && <button onClick={createNew}>{'\u041d\u043e\u0432\u0430\u044f \u043d\u043e\u043c\u0435\u043d\u043a\u043b\u0430\u0442\u0443\u0440\u0430'}</button>}</div><NomenclatureProcessTable items={filteredItems} selectedId="" onSelect={onOpen} /></section>
   </>;
 }
 
